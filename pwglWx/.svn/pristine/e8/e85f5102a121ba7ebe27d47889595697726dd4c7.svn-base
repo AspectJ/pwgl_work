@@ -1,0 +1,43 @@
+#production envirment use this
+#log4j.rootLogger=INFO,console,kafka,common,err
+
+# test not send to kafka
+log4j.rootLogger=err,console
+ 
+# appender kafka
+log4j.appender.kafka=org.apache.kafka.log4jappender.KafkaLog4jAppender
+log4j.appender.kafka.topic=pwglMgr
+# multiple brokers are separated by comma ",".
+log4j.appender.kafka.brokerList=192.168.195.5:9092
+log4j.appender.kafka.compressionType=none
+log4j.appender.kafka.syncSend=false
+log4j.appender.kafka.layout=org.apache.log4j.PatternLayout
+log4j.appender.kafka.layout.ConversionPattern=%d [%-5p] [%t] - [%l] %m%n
+
+  
+# appender console
+log4j.appender.console=org.apache.log4j.ConsoleAppender
+log4j.appender.console.target=System.out
+log4j.appender.console.layout=org.apache.log4j.PatternLayout
+log4j.appender.console.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss.SSS} %-5p [%t] [%M]: %m%n
+#log4j.appender.console.Threshold=INFO
+
+# common log
+log4j.appender.common=org.apache.log4j.DailyRollingFileAppender  
+log4j.appender.common.File=logs/normal.log
+log4j.appender.common.Append=true
+log4j.appender.common.Threshold=INFO
+log4j.appender.common.layout=org.apache.log4j.PatternLayout  
+log4j.appender.common.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss.SSS} %-5p [%t] [%M]: %m%n
+#log4j.appender.common.MaxFileSize=100000KB
+#log4j.appender.common.MaxBackupIndex=200
+
+# error log
+log4j.appender.err=org.apache.log4j.DailyRollingFileAppender  
+log4j.appender.err.File=logs/error.log
+log4j.appender.err.Append=true  
+log4j.appender.err.Threshold=ERROR
+log4j.appender.err.layout=org.apache.log4j.PatternLayout  
+log4j.appender.err.layout.ConversionPattern=%d{yyyy-MM-dd HH:mm:ss.SSS} %-5p [%t] [%M]: %m%n
+#log4j.appender.err.MaxFileSize=100000KB
+#log4j.appender.err.MaxBackupIndex=200

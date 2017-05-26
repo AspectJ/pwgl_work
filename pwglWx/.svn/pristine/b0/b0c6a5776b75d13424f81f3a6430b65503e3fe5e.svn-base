@@ -1,0 +1,27 @@
+#mysql
+jdbc.driverClassName=com.mysql.jdbc.Driver
+jdbc.url=jdbc:mysql://192.168.195.5:3306/pwgl?useUnicode=true&characterEncoding=UTF-8&zeroDateTimeBehavior=convertToNull
+jdbc.username=root
+jdbc.password=123456
+
+
+#pool option 
+#jdbc.idleConnectionTestPeriod=60
+#jdbc.idleMaxAge=240
+#jdbc.maxConnectionsPerPartition=10
+#jdbc.minConnectionsPerPartition=0
+#jdbc.partitionCount=3
+#jdbc.statementsCacheSize=0
+#jdbc.acquireIncrement=9
+#jdbc.releaseHelperThreads=3
+#jdbc.lazyInit=false
+#jdbc.statementReleaseHelperThreads=3
+
+###############################sql server
+#jdbc.driverClassName=com.microsoft.sqlserver.jdbc.SQLServerDriver
+#jdbc.rpUserName=sa
+#jdbc.dcUserName=sa
+#jdbc.password=NuME3rbwew0=
+#jdbc.rpUrl=jdbc:sqlserver://localhost:1433;DatabaseName=RPDB2
+#jdbc.dcUrl=jdbc:sqlserver://localhost:1433;DatabaseName=RPDB2
+#jdbc.validationQuery=select 1

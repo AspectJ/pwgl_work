@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sessnpew">
+    <select id="select" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+        SELECT
+            pewid,
+            row,
+            col,
+            price,
+            ptsp.pricelevelid,
+            ptpl.color,
+            ptpl.pic,
+            ptpl.pricelevelname,
+            ptpl.pxh
+        FROM
+            pt_sessnpew ptsp
+        LEFT JOIN pt_pricelevel ptpl ON ptsp.pricelevelid = ptpl.pricelevelid
+        WHERE sessionsid=#{sessionsid} and zoneid=#{zoneid}
+
+    </select>
+    <select id="selectPriceLevel" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+        SELECT
+            ptpl.pricelevelid,
+            ptpl.pricelevelname,
+            ptpl.color
+        FROM
+            pt_sessnpew ptsp
+        JOIN pt_pricelevel ptpl ON ptsp.pricelevelid = ptpl.pricelevelid
+        WHERE
+            sessionsid=#{sessionsid} and zoneid=#{zoneid} GROUP BY ptpl.pricelevelid ORDER BY pricelevelname
+
+    </select>
+
+</mapper>

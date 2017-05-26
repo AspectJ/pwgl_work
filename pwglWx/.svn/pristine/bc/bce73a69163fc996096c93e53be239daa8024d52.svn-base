@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+
+<config>
+
+	<!-- 微信机配置 -->
+	<!-- <weixin code="ydpweixinappcode" mobile="18684864363" local="http://open-wx.yidepiao.cn/"/> -->
+	<weixin mobile="00000000000" local="http://192.168.1.118:8082/wx/rest/"/>
+
+	<!-- 图片路径前缀 -->
+	<Img_prefix>http://pic.yidepiao.cn/</Img_prefix>
+	
+	<!-- app_id -->
+	<app_id>wx984f6afc9b7ec8d0</app_id>
+	
+	<!-- component_app_id -->
+	<component_app_id>wx2d409088c9aa191d</component_app_id>
+	
+	<!-- token -->
+	<token>X6b72jw8</token>
+	
+	<!-- encodingAesKey -->
+	<encodingAesKey>a8819e1bef7e7b348c1901a82d021790</encodingAesKey>
+	
+	<!-- 获取用户基本信息 -->
+	<wx_get_userinfo_url>https://api.weixin.qq.com/sns/userinfo</wx_get_userinfo_url>
+
+	<!-- 微信登录接口-获取code-->
+	<wx_getcode_url>https://open.weixin.qq.com/connect/oauth2/authorize</wx_getcode_url>
+	
+	<!-- 微信获取openid接口 -->
+	<wx_gettoken_url>https://api.weixin.qq.com/sns/oauth2/component/access_token</wx_gettoken_url>
+	
+	<!-- 微信获取component_access_token -->
+	<wx_getaccess_token_url>https://api.weixin.qq.com/cgi-bin/component/api_component_token</wx_getaccess_token_url>
+	
+	<!-- component_access_token -->
+	<component_access_token>hCWgYdlU9T-E01nOMIuM3tyXSwH669zFwfO4_8JleGLUkyOABDCn6yhlF9mSDsgGe4SA1VOPnTPsGOM7JTFoph58PPTZqnrPIkSdh4W_rHJ1t3cXFl6937QgtFkzDJL6ZBTbAIAHJB</component_access_token>
+		
+	<!-- 分页页面大小 -->
+	<page_size>10</page_size>
+	
+	<!-- cookie timeout 默认 15天 单位：秒-->
+	<cookie_timeout>1296000</cookie_timeout>
+	
+</config>

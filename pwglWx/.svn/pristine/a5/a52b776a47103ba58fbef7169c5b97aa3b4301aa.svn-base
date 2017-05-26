@@ -1,0 +1,98 @@
+package com.ydp.pwgl.wx.service;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.typedef.UDException;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.DateForamtUtil;
+
+@Service
+public class OrderService extends BaseService implements IService {
+	// 未决座位redis key
+	public static final String LOCKSEATLIST = "lockseatlist";
+
+	// 过期时间15分钟
+	private static final int SEATTIMEOUT = 900;
+	
+	//最大售票时长
+	private static final int MAXSELLTIME = 99999999;
+	
+	//订单状态
+	public static enum ORDERSTATUS {UNPAY,HASPAY,OUTTICKET,RETURNMONEY,CANCEL,SENDOUT} ;
+
+	public OrderService() {
+		super(OrderService.class);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	public void service(Param param) throws Exception {
+		// TODO Auto-generated method stub
+
+	}
+
+
+
+	/**
+	 * 锁座参数校验
+	 * @param param
+	 * @return
+	 * @throws UDException
+	 */
+	private boolean beforeLockCheck(Param param)  {
+
+		// 参数校验
+		if (!CodeUtil.checkMapValue(param, "itemid")
+				|| !CodeUtil.checkMapValue(param, "sessionsid")
+				|| !CodeUtil.checkMapValue(param, "venueid")
+				|| !CodeUtil.checkMapValue(param, "hallid")
+				|| !CodeUtil.checkMapValue(param, "producttypeid")
+				|| !CodeUtil.checkMapValue(param, "paytype")
+				|| !CodeUtil.checkMapValue(param, "payboxid")
+				|| !CodeUtil.checkMapValue(param, "sellerid")
+				|| !CodeUtil.checkMapValue(param, "pewid")) {
+
+			return false;
+		}
+
+		return true;
+	}
+	
+	
+
+	/**
+	 * 锁座
+	 * 
+	 * @param param
+	 * @throws Exception
+	 * 
+	 *订单状态:0:未支付:1：已支付2:已出票3:已退款4已取消5已发货
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public void lock(Param param) throws Exception {
+		
+		//登录校验
+		if (CodeUtil.checkParam(param.getString("uid"))) throw new UDException(StatusCode.NotLogon);
+		//参数校验
+		if (!beforeLockCheck(param)) throw new UDException(StatusCode.InvalidParam);
+		
+		// 检测是否已存在未付有效订单
+
+		// 座位号加入缓存队列,保持未付款状态15分钟
+
+		// 产生订单于数据库及缓存
+
+		// 写订单成功锁座,失败则释放座位
+
+	}
+
+}

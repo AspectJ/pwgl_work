@@ -1,0 +1,328 @@
+package com.ydp.pwgl.wx.controller;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Date;
+import java.util.Map;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+
+import org.jboss.resteasy.util.DateUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.BaseController;
+import com.ydp.pwgl.wx.Config;
+import com.ydp.pwgl.wx.service.UserService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.typedef.UDException;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.DateForamtUtil;
+import com.ydp.util.IdUtil;
+import com.ydp.wx.WxApi;
+
+@Service
+@Path("/rest/user")
+public class UserController extends BaseController {
+
+	public UserController() {
+		super(UserController.class);
+	}
+
+	@Autowired
+	private UserService userService;
+ 
+	/**
+	 * 1.获取第三方平台component_verify_ticket
+	 */
+	@GET
+	@POST
+	@Path("/notify")
+	@Produces("application/json;charset=UTF-8")
+	public String notify(@Context HttpServletRequest request) {
+		getLogger().info("notify() called at {}",
+				DateForamtUtil.to_yyyy_MM_dd_HH_mm_ss_str(new Date()));
+
+		String component_verify_ticket = WxApi.api_get_component_verify_ticket(
+				request, Config.token, Config.encodingAesKey,
+				Config.component_app_id);
+		if (component_verify_ticket == null) {
+			getLogger().error("notify() component_verify_ticket = null");
+			return "fail";
+		}
+
+		String component_access_token = WxApi.api_get_component_access_token(
+				Config.wx_getaccess_token_url, component_verify_ticket,
+				Config.component_app_id, Config.component_appsecret);
+
+		if (component_access_token == null) {
+			getLogger().error("notify() component_access_token = null");
+			return "fail";
+		}
+
+		// 将component_access_token存处配置文件
+		Config.SaveConfig("component_access_token", component_access_token);
+
+		return "success";
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/login")
+	@Produces("application/json;charset=UTF-8")
+	public void login(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String redirectUrl = Config.local + "user/access_token";
+		String appid = request.getParameter("appid");
+		String component_access_token = Config.component_access_token;
+		String state = request.getParameter("state");
+
+		if (CodeUtil.checkParam(component_access_token)) {
+			getLogger().error("[login] component_access_token = null");
+			return;
+		}
+
+		if (CodeUtil.checkParam(appid)) {
+			appid = Config.app_id;
+		}
+
+		String resultstr = WxApi.api_wx_getcode_url(Config.wx_getcode_url,
+				Config.app_id, Config.component_app_id, component_access_token,
+				redirectUrl, state);
+
+		getLogger().info("准备微信登录: {} ", resultstr);
+
+		response.sendRedirect(resultstr);
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/access_token")
+	@Produces("text/html;charset=UTF-8")
+	public void access_token(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws IOException {
+		String code = request.getParameter("code");
+		String app_id = request.getParameter("appid");
+		String state = request.getParameter("state");
+
+		String openid = "";
+		String refresh_token = "";
+		String access_token = "";
+		String nickname = "";
+		String headimgurl = "";
+		String sex = "";
+
+		getLogger().info("code:{},appid:{},state:{}", code, app_id, state);
+
+		try {
+
+			// 根据code 获取openid， access_token等
+			String result[] = WxApi.api_wx_getopenid(Config.wx_gettoken_url,
+					code, app_id, state, Config.component_app_id,
+					Config.component_access_token);
+
+			if (CodeUtil.checkParam(result)) {
+				getLogger().error("access_token 返回 null");
+				return;
+			}
+
+			openid = result[0];
+			refresh_token = result[1];
+			access_token = result[2];
+
+			// 获取用户基本信息
+			Map map = WxApi.api_wx_get_userinfo(Config.wx_get_userinfo_url,
+					openid, access_token);
+			if (map == null) {
+				getLogger().error("api_wx_get_userinfo 返回 null");
+			} else {
+				nickname = map.get("nickname").toString();
+				headimgurl = map.get("headimgurl").toString();
+				sex = map.get("sex").toString().equals("1") ? "男" : "女 ";
+			}
+
+			Integer uid = onlogin(openid, refresh_token, access_token, state,
+					nickname, sex, headimgurl);
+
+			if (CodeUtil.checkParam(uid.toString())) {
+				getLogger().error("登录失败!");
+				return;
+			}
+
+			// 设置cookie
+			toolsSetCookie(response, "uid", uid.toString(),
+					Config.cookie_timeout);
+
+			// 重定向来源地址
+			response.sendRedirect(Config.local + state);
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			getLogger().error("access_token:{}", e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/testlogin")
+	@Produces("application/json;charset=UTF-8")
+	public void testlogin(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String openid = request.getParameter("openid");
+		String state = request.getParameter("state");
+
+		String refresh_token = "";
+		String access_token = "";
+		String nickname = "";
+		String headimgurl = "";
+		String sex = "";
+
+		try {
+
+			Integer uid = onlogin(openid, refresh_token, access_token, state,
+					nickname, sex, headimgurl);
+
+			if (CodeUtil.checkParam(uid.toString())) {
+				getLogger().error("登录失败!");
+				return;
+			}
+
+			// 设置cookie
+			toolsSetCookie(response, "uid", uid.toString(),
+					Config.cookie_timeout);
+
+			// 重定向来源地址
+			response.sendRedirect(Config.local + state);
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			getLogger().error("testlogin:{}", e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+	}
+
+	/**
+	 * 查找或者注册新用户
+	 * 
+	 * @param openid
+	 * @param refresh_token
+	 * @param access_token
+	 * @param state
+	 * @param nickname
+	 * @param sex
+	 * @param headimgurl
+	 * @return
+	 */
+	private Integer onlogin(String openid, String refresh_token,
+			String access_token, String state, String nickname, String sex,
+			String headimgurl) {
+		try {
+			Integer uid = userService.GetUserByOpenId(openid);
+			if (uid == null) {// 需要新建
+				Param param = new Param();
+				param.put("username", nickname);
+				param.put("pass", openid);
+				param.put("realname", nickname);
+				param.put("headimgurl", headimgurl);
+				param.put("sex", sex);
+				param.put("openid", openid);
+				param.put("refresh_token", "");
+				param.put("access_token", "");
+				uid = userService.NewUser(param);
+			}
+
+			return uid;
+		} catch (Exception e) {
+			getLogger().error("onlogin:{}", e.getMessage());
+			return null;
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/sendsms")
+	@Produces("application/json;charset=UTF-8")
+	public void sendsms(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String phone = request.getParameter("mobilenumber");
+		String IdentifyNo = request.getParameter("identifyno");
+
+		// 参数缺省
+		if (CodeUtil.checkParam(phone, IdentifyNo)) {
+			ResponseStatusCode(request, response, StatusCode.MissingParams);
+			return;
+		}
+
+		// 发送短信至手机
+		Param param = new Param(request);
+		try {
+			param.put("smstype", "验证会员等级");
+			param.put("smscontent", CodeUtil.randomNum(100000, 999999));
+			userService.InsertSmsTask(param);
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/checklevel")
+	@Produces("application/json;charset=UTF-8")
+	public void checklevel(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String phone = request.getParameter("mobilenumber");
+		String IdentifyNo = request.getParameter("identifyno");
+		String smscontent = request.getParameter("smscontent");
+
+		// 参数缺省
+		if (CodeUtil.checkParam(phone, IdentifyNo, smscontent)) {
+			ResponseStatusCode(request, response, StatusCode.MissingParams);
+			return;
+		}
+
+		try {
+			// 发送短信至手机
+			String sms = userService.GetSms(phone);
+			if (sms.equals(smscontent)) {
+				Param param = new Param(request);
+
+				userService.UpdateIdentifyNo(param);
+
+			} else {
+				ResponseStatusCode(request, response,
+						StatusCode.SmsContentError);
+			}
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			getLogger().error("checklevel:{}", e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+	}
+}

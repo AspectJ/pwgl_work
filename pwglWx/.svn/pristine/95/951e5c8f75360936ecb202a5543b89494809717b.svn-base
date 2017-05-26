@@ -1,0 +1,423 @@
+package com.ydp.pwgl.wx.controller;
+
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStreamReader;
+import java.util.Date;
+import java.util.Map;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.Cookie;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+
+import org.apache.commons.lang.time.DateFormatUtils;
+import org.jboss.resteasy.util.DateUtil;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ydp.face.BaseController;
+import com.ydp.pwgl.wx.Config;
+import com.ydp.pwgl.wx.service.UserService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.typedef.UDException;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.DateForamtUtil;
+import com.ydp.util.IdUtil;
+import com.ydp.wx.WxApi;
+
+@Service
+// @Path("/rest/user")
+@Path("/rest/openwx")
+public class UserController extends BaseController {
+
+	public UserController() {
+		super(UserController.class);
+	}
+
+	@Autowired
+	private UserService userService;
+
+	/**
+	 * 1.获取第三方平台component_verify_ticket
+	 */
+	@GET
+	@POST
+	@Path("/notify")
+	@Produces("application/json;charset=UTF-8")
+	public String notify(@Context HttpServletRequest request) {
+		getLogger().debug("notify() called at {}",
+				DateForamtUtil.to_yyyy_MM_dd_HH_mm_ss_str(new Date()));
+		String component_verify_ticket = WxApi.api_get_component_verify_ticket(
+				request, Config.token, Config.encodingAesKey,
+				Config.component_app_id);
+		if (component_verify_ticket == null) {
+			getLogger().error("notify() component_verify_ticket = null");
+			return "fail";
+		}
+
+		String component_access_token = WxApi.api_get_component_access_token(
+				Config.wx_getaccess_token_url, component_verify_ticket,
+				Config.component_app_id, Config.component_app_secret);
+
+		if (component_access_token == null) {
+			getLogger().error("notify() component_access_token = null");
+			return "fail";
+		}
+
+		// 将component_access_token存处配置文件
+		Config.component_access_token = component_access_token;
+		// Config.SaveConfig("component_access_token", component_access_token);
+		userService.getRedisClient().set("component_access_token",
+				component_access_token);
+
+		getLogger().debug("notify 获取到 component_access_token :{}",
+				component_access_token);
+
+		// 预授权
+		String preauth_code = WxApi.api_create_preauthcode(
+				Config.wx_preauth_url, Config.component_app_id,
+				component_access_token);
+		if (!CodeUtil.checkParam(preauth_code)) {
+			// Config.SaveConfig("preauth_code", preauth_code);
+			userService.getRedisClient().set("preauth_code", preauth_code);
+		}
+
+		return "success";
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/login")
+	@Produces("application/json;charset=UTF-8")
+	public void login(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		Config.component_access_token = userService.getRedisClient().get(
+				"component_access_token");
+		String redirectUrl = Config.local + "openwx/access_token";
+		String appid = request.getParameter("appid");
+		String component_access_token = Config.component_access_token;
+		String state = request.getParameter("state");
+
+		if (CodeUtil.checkParam(component_access_token)) {
+			getLogger().error("[login] component_access_token = null");
+			return;
+		}
+
+		if (CodeUtil.checkParam(appid)) {
+			appid = Config.app_id;
+		}
+
+		String resultstr = WxApi.api_wx_getcode_url(Config.wx_getcode_url,
+				Config.app_id, Config.component_app_id, component_access_token,
+				redirectUrl, state);
+
+		getLogger().debug("准备微信登录: {} ", resultstr);
+
+		response.sendRedirect(resultstr);
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/access_token")
+	@Produces("text/html;charset=UTF-8")
+	public void access_token(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws IOException {
+		String code = request.getParameter("code");
+		String app_id = request.getParameter("appid");
+		String state = request.getParameter("state");
+
+		String openid = "";
+		String refresh_token = "";
+		String access_token = "";
+		String nickname = "";
+		String headimgurl = "";
+		String sex = "";
+
+		getLogger().info("code:{},appid:{},state:{}", code, app_id, state);
+
+		try {
+
+			Config.component_access_token = userService.getRedisClient().get(
+					"component_access_token");
+
+			// 根据code 获取openid， access_token等
+			String result[] = WxApi.api_wx_getopenid(Config.wx_gettoken_url,
+					code, app_id, state, Config.component_app_id,
+					Config.component_access_token);
+
+			if (CodeUtil.checkParam(result)) {
+				getLogger().error("access_token 返回 null");
+				ResponseStatusCode(request,response,StatusCode.LogonFailed);
+				return;
+			}
+
+			for (int i = 0; i < result.length; i++)
+				getLogger().info("WxApi.api_wx_getopenid:result[{}]:{}", i,
+						result[i]);
+
+			openid = result[0];
+			refresh_token = result[1];
+			access_token = result[2];
+
+			// 获取用户基本信息
+			Map map = WxApi.api_wx_get_userinfo(Config.wx_get_userinfo_url,
+					openid, access_token);
+			if (map == null) {
+				getLogger().error("api_wx_get_userinfo 返回 null");
+			} else {
+				nickname = map.get("nickname").toString();
+				headimgurl = map.get("headimgurl").toString();
+				sex = map.get("sex").toString().equals("1") ? "男" : "女 ";
+			}
+
+			getLogger().info("api_wx_get_userinfo;{},map.size:{}", map,
+					map.size());
+
+			Integer uid = onlogin(openid, refresh_token, access_token, state,
+					nickname, sex, headimgurl);
+
+			if (CodeUtil.checkParam(uid.toString())) {
+				getLogger().error("登录失败!");
+				ResponseStatusCode(request,response,StatusCode.LogonFailed);
+				return;
+			}
+
+			// 设置cookie
+			toolsSetCookie(response, "uid", uid.toString(),
+					Config.cookie_timeout);
+			toolsSetCookie(response, "openid", openid,
+					Config.cookie_timeout);
+
+			// 重定向来源地址
+			response.sendRedirect(Config.local + state);
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			getLogger().error("access_token:{}", e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/testlogin")
+	@Produces("application/json;charset=UTF-8")
+	public void testlogin(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String openid = request.getParameter("openid");
+		String state = request.getParameter("state");
+
+		if (CodeUtil.checkParam(openid)) {
+			ResponseStatusCode(request, response, StatusCode.MissingParams);
+			return;
+		}
+
+		String refresh_token = "";
+		String access_token = "";
+		String nickname = "";
+		String headimgurl = "";
+		String sex = "";
+
+		try {
+
+			Integer uid = onlogin(openid, refresh_token, access_token, state,
+					nickname, sex, headimgurl);
+
+			if (CodeUtil.checkParam(uid.toString())) {
+				getLogger().error("登录失败!");
+				return;
+			}
+
+			// 设置cookie
+			toolsSetCookie(response, "uid", uid.toString(),
+					Config.cookie_timeout);
+			toolsSetCookie(response, "openid", openid,
+					Config.cookie_timeout);
+
+			// 重定向来源地址
+			response.sendRedirect(Config.local + state);
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			getLogger().error("testlogin:{}", e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+	}
+
+	/**
+	 * 查找或者注册新用户
+	 * 
+	 * @param openid
+	 * @param refresh_token
+	 * @param access_token
+	 * @param state
+	 * @param nickname
+	 * @param sex
+	 * @param headimgurl
+	 * @return
+	 */
+	private Integer onlogin(String openid, String refresh_token,
+			String access_token, String state, String nickname, String sex,
+			String headimgurl) throws Exception {
+
+		Integer uid = userService.GetUserByOpenId(openid);
+		if (uid == null) {// 需要新建
+			String currtime = DateForamtUtil
+					.to_yyyy_MM_dd_HH_mm_ss_str(new Date());
+			Param param = new Param();
+			param.put("username", nickname + "@yidepiao.com");
+			param.put("pass", openid);
+			param.put("realname", nickname);
+			param.put("headimgurl", headimgurl);
+			param.put("sex", sex);
+			param.put("openid", openid);
+			param.put("refresh_token", refresh_token);
+			param.put("access_token", access_token);
+			param.put("provider", "3");
+			param.put("nick", nickname);
+			param.put("cid", "1");
+			param.put("ctime", currtime);
+			param.put("mid", "1");
+			param.put("mtime", currtime);
+			uid = userService.NewUser(param);
+		}
+		return uid;
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/sendsms")
+	@Produces("application/json;charset=UTF-8")
+	public void sendsms(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String phone = request.getParameter("mobilenumber");
+		String IdentifyNo = request.getParameter("identifyno");
+
+		// 参数缺省
+		if (CodeUtil.checkParam(phone, IdentifyNo)) {
+			ResponseStatusCode(request, response, StatusCode.MissingParams);
+			return;
+		}
+
+		// 发送短信至手机
+		Param param = new Param(request);
+		try {
+			String smscreatetime = userService.GetSms(param);
+			if (!CodeUtil.checkParam(smscreatetime)) {
+				ResponseStatusCode(request, response, StatusCode.SmsHasExists);
+				return;
+			}
+
+			param.put("smstype", "验证会员等级");
+			param.put("smscontent", CodeUtil.randomNum(100000, 999999));
+			if (userService.InsertSmsTask(param)>0)
+				ResponseStatusCode(request,response,StatusCode.Success);
+			else
+				ResponseStatusCode(request,response,StatusCode.SmsSendFailed);
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			getLogger().error(e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/checklevel")
+	@Produces("application/json;charset=UTF-8")
+	public void checklevel(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		String phone = request.getParameter("mobilenumber");
+		String IdentifyNo = request.getParameter("identifyno");
+		String smscontent = request.getParameter("smscontent");
+		String timestamp = request.getParameter("timestamp");
+
+		// 参数缺省
+		if (CodeUtil.checkParam(phone, IdentifyNo, smscontent, timestamp)) {
+			ResponseStatusCode(request, response, StatusCode.MissingParams);
+			return;
+		}
+
+		Param param = new Param(request);
+		try {
+			userService.CheckLevel(param);			
+			if (!CodeUtil.checkMapValue(param, "uidnew")) {
+				getLogger().error("uidnew={}",param.getString("uidnew"));
+				toolsSetCookie(response, "uid", param.getString("uidnew"),
+						Config.cookie_timeout);
+				ResponseStatusCode(request, response, StatusCode.Success);
+			}else{
+				getLogger().error("uidnew=null");
+				ResponseStatusCode(request, response, StatusCode.BindMemberFailed);
+			}
+		} catch (UDException ude) {
+			ResponseStatusCode(request, response, ude.code);
+		} catch (Exception e) {
+			// TODO Auto-generated catch block
+			getLogger().error(e.getMessage());
+			ResponseStatusCode(request, response, StatusCode.SysException);
+		}
+
+	}
+
+	/**
+	 * 第三方授权界面
+	 */
+	@GET
+	@POST
+	@Path("/accredit")
+	@Produces("text/html;charset=UTF-8")
+	public String accredit(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) {
+		String api_create_preauthcode = userService.getRedisClient().get(
+				"preauth_code");
+
+		String url = "https://mp.weixin.qq.com/cgi-bin/componentloginpage?component_appid="
+				+ Config.component_app_id
+				+ "&pre_auth_code="
+				+ api_create_preauthcode
+				+ "&redirect_uri="
+				+ Config.local
+				+ "openwx/accreditSuccess";
+		return "<html><div style='text-align: center;'><img src='/weiweb/img/beij.png' style='width:1024px;'/><a href='"
+				+ url
+				+ "'><img src='/weiweb/img/shouquanbn.png' style='position:absolute;top:370px;left:62%; width:180px;'></a></div></html>";
+	}
+
+	/**
+	 * 第三方授权成功
+	 */
+	@GET
+	@POST
+	@Path("/accreditSuccess")
+	@Produces("application/json;charset=UTF-8")
+	public String accreditSuccess(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) {
+		return "授权成功！";
+	}
+}

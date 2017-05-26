@@ -1,0 +1,832 @@
+package com.ydp.pwgl.wx.controller;
+
+import com.ydp.pwgl.wx.Config;
+import com.ydp.pwgl.wx.service.OrderService;
+import com.ydp.util.CodeUtil;
+import net.sf.json.JSONObject;
+import org.dom4j.Document;
+import org.dom4j.DocumentHelper;
+import org.dom4j.Element;
+import org.dom4j.Node;
+import org.jboss.resteasy.annotations.cache.NoCache;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import weixinpay.bean.ResMessage;
+import weixinpay.common.Configure;
+import weixinpay.common.Signature;
+import weixinpay.filter.BaseServlet;
+import weixinpay.mongo.MyMongo;
+import weixinpay.servier.bean.DataMessage;
+import weixinpay.util.Constant;
+import weixinpay.util.DateForamtUtil;
+
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+import java.io.*;
+import java.math.BigDecimal;
+
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * Created by 董亮 on 2017/5/15.
+ */
+@Path("rest/wxpay")
+@NoCache
+@Service
+public class WenPayController extends BaseServlet {
+    private static final Logger logger = LoggerFactory.getLogger(WenPayController.class);
+
+  /*  @Resource
+    private IServiceOrder serviceOrder;*/
+
+   /* @Resource
+    private IServiceUser serviceUser;
+
+    @Resource
+    private IServiceWeiXin serviceWeiXin;
+
+
+*/
+   @Autowired
+   private OrderService orderService;
+    /**
+     * 一卡通数据接口
+     */
+   /* @Autowired
+    protected IServiceECard serviceECard;*/
+
+    /**
+     * 统一下单，获取预备支付id
+     */
+    @SuppressWarnings("unchecked")
+    @GET
+    @POST
+    @Path("/getPrePayID")
+    @Produces("application/json;charset=UTF-8")
+    public String getPrePayID(@Context HttpServletRequest request)
+    {
+        JSONObject resultJson = new JSONObject();
+        long stime = System.currentTimeMillis();
+        // -------------------------------------------------------------------------------
+       /* String userid = request.getAttribute("userid").toString();
+
+        String orderid = request.getParameter("sid"); // 购票锁座订单号
+        String mtype = request.getParameter("mtype");
+        String mobile = request.getParameter("mobile"); // 接收短信手机号码
+
+        String cardid = request.getParameter("cardid"); // 充值的卡号
+        String rechargeprice = request.getParameter("rechargeprice"); // 卡劵充值金额
+        String openid = request.getParameter("openid");*/
+        String userid="1";
+        String orderid = "01216LGK80000007";
+        String mtype ="JSAPI";
+        String mobile="18390957104";
+        String rechargeprice="0.01";
+        String cardid="";
+        String openid="wxad91c879e57c371e";
+        String product_id = "12235413214070356458058";
+        try
+        {
+               //获取用户openid
+            //    String openid = serviceUser.getUserOpenid(userid).getData().toString();
+
+            if (!CodeUtil.checkParam(orderid))
+            {
+                //获取有效订单详情(Redis)
+                //  DataMessage dataMessage = serviceOrder.getEffectiveOrderMessage(orderid);
+                //   if (dataMessage.isSuccess())
+                if (true)
+                {
+                    //Map<String, String> order = (Map<String, String>) dataMessage.getData();
+
+                    //   int status = Integer.parseInt(order.get("status").toString());
+                    int status=1;
+                    if (status == 3 || status == 1)
+                    {
+                        if (status == 1)
+                        {
+                            //修改接受短信手机号码
+                            //   dataMessage = serviceOrder.changeMobile(orderid, mobile);
+                            //  if (!dataMessage.isSuccess())
+                            if(false)
+                            {
+                                return this.returnError(resultJson, ResMessage.Request_Fail.code, request);
+                            }
+                        }
+                       // 等待完成支付
+                        // dataMessage = serviceOrder.waitPayment(orderid, Constant.Pay_WeiX);
+                        //  if (!dataMessage.isSuccess())
+                        if(false)
+                        {
+                            return this.returnError(resultJson, ResMessage.Request_Fail.code, request);
+                        }
+
+                        //  String body = "易得票-" + order.get("theatername") + "《" + order.get("moviename") + "》 " + "电影票";
+                        String body = "易得票-" + "theatername"+ "《" + "moviename" + "》 " + "电影票";
+                        // String out_trade_no = order.get("ordercode");
+                        String out_trade_no = "20150806125346";
+                        Date now = new Date();
+                        String time_start = DateForamtUtil.to_YYYYMMddHHmmss_str(now);
+                        String time_expire = DateForamtUtil.to_YYYYMMddHHmmss_str(DateForamtUtil.addMinute(now, 10));
+
+                        // 应付金额
+                        //  float org_amount = Float.parseFloat(order.get("actprice"));
+                        float org_amount=0.8f;
+                        BigDecimal b = new BigDecimal(org_amount * 100);
+                        org_amount = b.setScale(0, BigDecimal.ROUND_HALF_UP).floatValue();
+
+                        String total_fee = String.valueOf((int) (org_amount));
+
+
+                        if (mtype != null && "native".equals(mtype))
+                        {
+                            // 获取扫码支付的
+                            Map<String, Object> wxPayMap = getQRPrepayID("NATIVE", product_id, body, out_trade_no + "_N",
+                                    total_fee, time_start, time_expire);
+                            if (wxPayMap == null)
+                            {
+                                return returnError(resultJson, ResMessage.Pay_Wx_Pre_Fail.code, request);
+                            } else if (wxPayMap.containsKey("code_url"))
+                            {
+                                resultJson.put("data", wxPayMap.get("code_url"));
+                            }
+                        } else
+                        {
+                            // 获取预付单信息
+                            Map<String, Object> wxPayMap = getPrepayID("JSAPI", body, out_trade_no, total_fee, openid,
+                                    time_start, time_expire, Constant.WZ);
+                            if (wxPayMap == null)
+                            {
+                                return returnError(resultJson, ResMessage.Pay_Wx_Pre_Fail.code, request);
+                            } else if (wxPayMap.containsKey("prepay_id"))
+                            {
+                                Map<String, Object> signMap = new HashMap<String, Object>();
+                                signMap.put("appId", Configure.getAppid()); // 商户注册具有支付权限的公众号成功后即可获得
+                                signMap.put("timeStamp", String.valueOf(System.currentTimeMillis() / 1000)); // 当前的时间
+                                signMap.put("nonceStr", CodeUtil.getRandomUUID(32)); // 随机字符串，不长于32位
+                                signMap.put("package", "prepay_id=" + wxPayMap.get("prepay_id")); // 订单详情扩展字符串
+                                signMap.put("signType", "MD5"); // 签名算法，暂支持MD5
+
+                                if (wxPayMap.containsKey("code_url"))
+                                {
+                                    signMap.put("code_url", wxPayMap.get("code_url").toString());
+                                }
+
+                                // 计算前面
+                                String sign = Signature.getSign(signMap);
+
+                                JSONObject json = JSONObject.fromObject(signMap);
+                                json.put("paySign", sign); // 签名
+                                json.put("package_", signMap.get("package"));
+                                resultJson.put("data", json);
+                            }
+                        }
+                    }
+                }
+            } else
+            {
+              /*  DataMessage dataMessage = serviceECard.userCardDetail(Integer.parseInt(userid), Integer.parseInt(cardid),
+                        Constant.WXCHANNEL);
+                if (dataMessage.isSuccess())*/
+                if(true)
+                {
+                    // Map<String, Object> cardDetail = (Map<String, Object>) dataMessage.getData();
+                    // 查询卡劵是否存在，是否过有效期
+                    //if (cardDetail != null && cardDetail.containsKey("endtime")
+                    //        && new Date().before((Date) cardDetail.get("endtime")))
+                    if(true)
+                    {
+                        // 调用统一下单接口
+                        Date now = new Date();
+                        String time_start = DateForamtUtil.to_YYYYMMddHHmmss_str(now);
+                        String time_expire = DateForamtUtil.to_YYYYMMddHHmmss_str(DateForamtUtil.addMinute(now, 10));
+
+                        if (mtype != null && "native".equals(mtype))
+                        {
+                            // // 获取扫码支付的
+                            // Map<String, Object> wxPayMap = getQRPrepayID("NATIVE", product_id, body, out_trade_no + "_N",
+                            // total_fee, time_start, time_expire);
+                            // if (wxPayMap == null)
+                            // {
+                            // return returnError(resultJson, ResMessage.Pay_Wx_Pre_Fail.code, request);
+                            // } else if (wxPayMap.containsKey("code_url"))
+                            // {
+                            // resultJson.put("data", wxPayMap.get("code_url"));
+                            // }
+                        } else
+                        {
+                            String total_fee = String.valueOf(Math.round(Float.parseFloat(rechargeprice) * 100));
+                            String body = "卡劵充值";
+                            String out_trade_no = CodeUtil.getRandomUUID(16);
+
+                            // 获取预付单信息
+                            Map<String, Object> wxPayMap = getPrepayID("JSAPI", body, out_trade_no, total_fee, openid,
+                                    time_start, time_expire, Constant.EC);
+                            if (wxPayMap == null)
+                            {
+                                return returnError(resultJson, ResMessage.Pay_Wx_Pre_Fail.code, request);
+                            } else if (wxPayMap.containsKey("prepay_id"))
+                            {
+                                // 将订单存入数据库
+                                Map<String, Object> orderMap = new HashMap<String, Object>();
+                                orderMap.put("ordernumber", out_trade_no);
+                                orderMap.put("ext_userid", userid);
+                                orderMap.put("cardid", cardid);
+                                orderMap.put("paymethod", Constant.Pay_WeiX);
+                                orderMap.put("amount", rechargeprice);
+                                //   dataMessage = serviceECard.rechargeOrderCreate(orderMap); // 卡劵充值订单生成
+                                // if (dataMessage.isSuccess())
+                                if(true)
+                                {
+                                    Map<String, Object> signMap = new HashMap<String, Object>();
+                                    signMap.put("appId", Configure.getAppid()); // 商户注册具有支付权限的公众号成功后即可获得
+                                    signMap.put("timeStamp", String.valueOf(System.currentTimeMillis() / 1000)); // 当前的时间
+                                    signMap.put("nonceStr", CodeUtil.getRandomUUID(32)); // 随机字符串，不长于32位
+                                    signMap.put("package", "prepay_id=" + wxPayMap.get("prepay_id")); // 订单详情扩展字符串
+                                    signMap.put("signType", "MD5"); // 签名算法，暂支持MD5
+
+                                    if (wxPayMap.containsKey("code_url"))
+                                    {
+                                        signMap.put("code_url", wxPayMap.get("code_url").toString());
+                                    }
+
+                                    // 计算前面
+                                    String sign = Signature.getSign(signMap);
+
+                                    JSONObject json = JSONObject.fromObject(signMap);
+                                    json.put("paySign", sign); // 签名
+                                    json.put("package_", signMap.get("package"));
+                                    resultJson.put("data", json);
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (Exception e)
+        {
+            logger.error("[getPrePayID]", e);
+            return this.returnError(resultJson, ResMessage.Server_Abnormal.code, request);
+        }
+
+        // -------------------------------------------------------------------------------
+        long etime = System.currentTimeMillis();
+        MyMongo.mRequestLog("统一下单", etime - stime, request, resultJson);
+        return this.response(resultJson, request);
+    }
+
+    /**
+     * 微信支付成功,同步到后台
+     */
+    @GET
+    @POST
+    @Path("/return_url")
+    @Produces("application/json;charset=UTF-8")
+    public String return_url(@Context HttpServletRequest request, @Context HttpServletResponse response)
+    {
+        JSONObject resultJson = new JSONObject();
+        long stime = System.currentTimeMillis();
+        // -------------------------------------------------------------------------------
+
+        //   String orderid = request.getParameter("sid");
+        String orderid="01216LGK80000007";
+        try
+        {
+            if (CodeUtil.checkParam(orderid))
+            {
+                MyMongo.mRequestFail(request, ResMessage.Lack_Param.code);
+                return this.returnError(resultJson, ResMessage.Lack_Param.code, request);
+            }
+
+            //   DataMessage dataMessage = serviceOrder.getEffectiveOrderStatus(orderid);
+            //  if (dataMessage.isSuccess())
+            if (true)
+            {
+                //  String status = dataMessage.getData().toString();
+                String status ="2";
+                if ("2".equals(status) || "5".equals(status) || "3".equals(status))
+                {
+                    if ("3".equals(status))
+                    {
+                        // 从微信获取支付结果
+                        // dataMessage = serviceWeiXin.getWXPayResult(orderid);
+                        //   if (!dataMessage.isSuccess())
+                        if (false)
+                        {
+                            MyMongo.mRequestFail(request, ResMessage.Paied_Fail.code);
+                            return this.returnError(resultJson, ResMessage.Paied_Fail.code, request);
+                        }
+                    }
+                } else
+                {
+                    MyMongo.mLog("INFO", "微信支付成功,同步到后台", "订单状态错误,status:" + status);
+                }
+            }
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信支付成功,同步到后台", request, e);
+            return this.returnError(resultJson, ResMessage.Server_Abnormal.code, request);
+        }
+
+        // -------------------------------------------------------------------------------
+        long etime = System.currentTimeMillis();
+        MyMongo.mRequestLog("微信支付成功,同步到后台", etime - stime, request, resultJson);
+        return this.response(resultJson, request);
+    }
+
+    /**
+     * 微信支付，异步通知
+     */
+    @GET
+    @POST
+    @Path("/notify_url")
+    @Produces("application/xml;charset=UTF-8")
+    public String notify_url(@Context HttpServletRequest request)
+    {
+        String resultStr = "<xml><return_code>FAIL</return_code><return_msg>支付错误</return_msg></xml>";
+        String successStr = "<xml><return_code>SUCCESS</return_code><return_msg>OK</return_msg></xml>";
+        long stime = System.currentTimeMillis();
+        // -------------------------------------------------------------------------------
+
+        StringBuffer xml = new StringBuffer();
+
+        try
+        {
+            // 获取请求参数
+            BufferedReader reader = new BufferedReader(new InputStreamReader(request.getInputStream()));
+            String readstr = reader.readLine();
+            while (readstr != null)
+            {
+                xml.append(readstr);
+                readstr = reader.readLine();
+            }
+
+            if (!Signature.checkIsSignValidFromResponseString(xml.toString()))
+            {
+                resultStr = "<xml><return_code>FAIL</return_code><return_msg>签名错误</return_msg></xml>";
+                MyMongo.mLog("WARN", "微信支付-异步通知", resultStr);
+            } else
+            {
+                if (xml != null && xml.length() > 0)
+                {
+                    Document doc = DocumentHelper.parseText(xml.toString());
+                    Element root = doc.getRootElement();
+
+                    // 返回状态码
+                    String return_code = root.selectSingleNode("return_code").getText();
+                    if ("SUCCESS".equals(return_code))
+                    {
+                        // 业务结果
+                        String result_code = root.selectSingleNode("result_code").getText();
+                        if ("SUCCESS".equals(result_code))
+                        {
+                            String attach = root.selectSingleNode("attach").getText(); // 附加数据
+                            String ordernumber = root.selectSingleNode("out_trade_no").getText(); // 商户订单号
+                            if (ordernumber.indexOf("_N") != -1)
+                            {
+                                ordernumber = ordernumber.substring(0, ordernumber.indexOf("_N"));
+                            }
+                            String totalfee = String
+                                    .valueOf(Float.parseFloat(root.selectSingleNode("total_fee").getText()) / 100); // 总金额
+
+                            String transaction = root.selectSingleNode("transaction_id").getText(); // 微信支付订单号
+
+                            DataMessage dataMessage = null;
+                            if (Constant.EC.equals(attach))
+                            {
+                                Map<String, Object> paramMap = new HashMap<String, Object>();
+                                paramMap.put("ordernumber", ordernumber);
+                                paramMap.put("transaction", transaction);
+                                paramMap.put("totalfee", totalfee);
+                                //   dataMessage = serviceECard.wxpayNotify(paramMap);
+                            } else
+                            {
+                                //  dataMessage = serviceOrder.wxpayNotify(ordernumber, transaction, totalfee); // 微信支付完成接口
+                            }
+                            if (dataMessage.isSuccess())
+                                resultStr = successStr;
+                            MyMongo.mLog("WARN", "微信支付-异步通知", resultStr);
+                        } else
+                        {
+                            String err_code = root.selectSingleNode("err_code").getText(); // 错误代码
+                            String err_code_des = root.selectSingleNode("err_code_des").getText(); // 错误代码描述
+                            MyMongo.mLog("WARN", "微信支付-异步通知", err_code + "-" + err_code_des);
+                        }
+                    } else
+                    {
+                        // 返回信息
+                        String return_msg = root.selectSingleNode("return_msg").getText();
+                        MyMongo.mLog("WARN", "微信支付-异步通知", return_msg);
+                    }
+                } else
+                {
+                    MyMongo.mLog("WARN", "微信支付-异步通知", resultStr);
+                }
+            }
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信支付，异步通知", "IP" + CodeUtil.getRemortIP(request) + ",XML" + String.valueOf(xml), e);
+        }
+        // -------------------------------------------------------------------------------
+        long etime = System.currentTimeMillis();
+        MyMongo.mRequestLog("微信支付，异步通知", etime - stime, request, resultStr);
+        return resultStr;
+    }
+
+    /**
+     * @Title: getPrepayID
+     * @Description: 微信统一下单
+     * @param @param trade_type
+     * @param @param body
+     * @param @param out_trade_no
+     * @param @param total_fee
+     * @param @param openid
+     * @param @param time_start
+     * @param @param time_expire
+     * @param @return
+     * @return Map<String,Object>
+     * @throws
+     */
+    public static Map<String, Object> getPrepayID(String trade_type, String body, String out_trade_no, String total_fee, String openid, String time_start, String time_expire, String attach)
+    {
+        StringBuffer resultStr = new StringBuffer();
+        try
+        {
+            HttpURLConnection connection = null;
+
+            URL url = new URL(Configure.UNIFIEDORDER_API);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);// 设置连接输出流为true,默认false (post 请求是以流的方式隐式的传递参数)
+            connection.setDoInput(true); // 设置连接输入流为true
+            connection.setRequestProperty("Accept-Charset", "utf-8");
+            connection.setRequestProperty("contentType", "utf-8");
+            connection.setRequestMethod("POST"); // 设置请求方式为post
+            connection.setUseCaches(false); // post请求缓存设为false
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); // application/x-www-form-urlencoded->表单数据
+            connection.connect(); // 建立连接
+
+            OutputStream out = connection.getOutputStream(); // 创建输入输出流
+            String param = getParamXml(trade_type, null, body, out_trade_no, total_fee, openid, time_start, time_expire, attach);
+            out.write(param.getBytes("UTF-8")); // 将参数输出到连接
+            out.flush(); // 输出完成后刷新并关闭流
+            out.close(); // 重要且易忽略步骤 (关闭流,切记!)
+
+            InputStream fin = connection.getInputStream();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fin, "utf-8"));
+            String str = reader.readLine();
+            while (str != null)
+            {
+                resultStr.append(str);
+                str = reader.readLine();
+            }
+
+            MyMongo.mLog("INFO", "微信统一下单", resultStr);
+
+            // 解析返回的数据
+            return parseReturnXML(resultStr.toString());
+        } catch (IOException e)
+        {
+            MyMongo.mErrorLog("微信统一下单", resultStr.toString(), e);
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信统一下单", resultStr.toString(), e);
+        }
+        return null;
+    }
+
+    /**
+     * 拼凑传入参数
+     *
+     * @param nonce_str
+     * @param body
+     * @param out_trade_no
+     * @param total_fee
+     * @param openid
+     * @param time_start
+     * @param time_expire
+     * @return
+     */
+    private static String getParamXml(String trade_type, String product_id, String body, String out_trade_no, String total_fee, String openid, String time_start, String time_expire, String attach)
+    {
+        StringBuffer paramXml = new StringBuffer();
+        String nonce_str = CodeUtil.getRandomUUID(32);
+
+        Map<String, Object> param = new HashMap<String, Object>();
+        param.put("appid", Configure.getAppid());
+        param.put("mch_id", Configure.getMchid());
+
+        param.put("trade_type", trade_type);
+        if ("JSAPI".equals(trade_type))
+        {
+            param.put("openid", openid);
+        } else
+        {
+            param.put("product_id", "test_product_id"); // trade_type=NATIVE，此参数必传。此id为二维码中包含的商品ID，商户自行定义。
+        }
+        param.put("total_fee", total_fee);
+        param.put("out_trade_no", out_trade_no);
+        param.put("body", body);
+        param.put("nonce_str", nonce_str);
+        param.put("notify_url", Config.local + "rest/wxpay/notify_url");
+        param.put("time_start", time_start);
+        param.put("time_expire", time_expire);
+        param.put("attach", attach);
+        param.put("spbill_create_ip", Configure.getIP());
+
+        // 生成签名
+        String sign = Signature.getSign(param);
+
+        paramXml.append("<xml>");
+
+        paramXml.append("<trade_type><![CDATA[").append(trade_type).append("]]></trade_type>"); // 交易类型
+        if ("JSAPI".equals(trade_type))
+        {
+            paramXml.append("<openid><![CDATA[").append(openid).append("]]></openid>"); // 用户标识
+        } else
+        {
+            paramXml.append("<product_id><![CDATA[").append("test_product_id").append("]]></product_id>"); // 用户标识
+        }
+
+        paramXml.append("<appid><![CDATA[").append(Configure.getAppid()).append("]]></appid>"); // 公众账号ID
+        paramXml.append("<mch_id><![CDATA[").append(Configure.getMchid()).append("]]></mch_id>"); // 商户号
+        paramXml.append("<sign><![CDATA[").append(sign).append("]]></sign>"); // 商户号
+        paramXml.append("<total_fee><![CDATA[").append(total_fee).append("]]></total_fee>"); // 总金额
+        paramXml.append("<out_trade_no><![CDATA[").append(out_trade_no).append("]]></out_trade_no>"); // 商户订单号
+        paramXml.append("<body><![CDATA[").append(body).append("]]></body>"); // 商品描述
+        paramXml.append("<nonce_str><![CDATA[").append(nonce_str).append("]]></nonce_str>"); // 随机字符串
+        paramXml.append("<notify_url><![CDATA[").append(Config.local + "rest/wxpay/notify_url").append("]]></notify_url>"); // 通知地址
+        paramXml.append("<time_start><![CDATA[").append(time_start).append("]]></time_start>"); // 交易起始时间
+        paramXml.append("<time_expire><![CDATA[").append(time_expire).append("]]></time_expire>"); // 交易结束时间
+        paramXml.append("<attach><![CDATA[").append(attach).append("]]></attach>"); // 交易结束时间
+        paramXml.append("<spbill_create_ip><![CDATA[").append(Configure.getIP()).append("]]></spbill_create_ip>"); // 终端IP
+        paramXml.append("</xml>");
+
+        MyMongo.mLog("INFO", "微信统一下单-入参", paramXml);
+
+        return paramXml.toString();
+    }
+
+    /**
+     * 微信统一下单-解析返回的数据
+     *
+     * @param xml
+     * @return
+     */
+    private static Map<String, Object> parseReturnXML(String xml)
+    {
+        Map<String, Object> wxPayMap = new HashMap<String, Object>();
+        try
+        {
+            if (xml != null && xml.length() > 0)
+            {
+                if (!Signature.checkIsSignValidFromResponseString(xml))
+                {
+                    MyMongo.mLog("INFO", "微信统一下单", "签名错误");
+                    return wxPayMap;
+                }
+
+                Document doc = DocumentHelper.parseText(xml);
+                Element root = doc.getRootElement();
+
+                String return_code = root.selectSingleNode("return_code").getText(); // 返回状态码
+
+                if ("SUCCESS".equals(return_code))
+                {
+                    String result_code = root.selectSingleNode("result_code").getText();
+                    if ("SUCCESS".equals(result_code))
+                    {
+                        String prepay_id = root.selectSingleNode("prepay_id").getText();
+                        wxPayMap.put("prepay_id", prepay_id);
+
+                        Node codeurlNode = root.selectSingleNode("code_url");
+                        if (codeurlNode != null)
+                        {
+                            wxPayMap.put("code_url", codeurlNode.getText());
+                        }
+                    } else
+                    {
+                        String err_code_des = root.selectSingleNode("err_code_des").getText();
+                        wxPayMap.put("err_code_des", err_code_des);
+                    }
+                } else
+                {
+                    String return_msg = root.selectSingleNode("return_msg").getText();
+                    wxPayMap.put("return_msg", return_msg);
+                }
+            }
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信统一下单", e);
+        }
+        return wxPayMap;
+    }
+
+    /**
+     * @Title: getQRPrepayID
+     * @Description: 微信统一下单(扫码支付)
+     * @param @param trade_type
+     * @param @param product_id
+     * @param @param body
+     * @param @param out_trade_no
+     * @param @param total_fee
+     * @param @param time_start
+     * @param @param time_expire
+     * @param @return
+     * @return Map<String,Object>
+     * @throws
+     */
+    public static Map<String, Object> getQRPrepayID(String trade_type, String product_id, String body, String out_trade_no, String total_fee, String time_start, String time_expire)
+    {
+        StringBuffer resultStr = new StringBuffer();
+        try
+        {
+            // if(closeOrder(out_trade_no)){
+            HttpURLConnection connection = null;
+
+            URL url = new URL(Configure.UNIFIEDORDER_API);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);// 设置连接输出流为true,默认false (post 请求是以流的方式隐式的传递参数)
+            connection.setDoInput(true); // 设置连接输入流为true
+            connection.setRequestProperty("Accept-Charset", "utf-8");
+            connection.setRequestProperty("contentType", "utf-8");
+            connection.setRequestMethod("POST"); // 设置请求方式为post
+            connection.setUseCaches(false); // post请求缓存设为false
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); // application/x-www-form-urlencoded->表单数据
+            connection.connect(); // 建立连接
+
+            OutputStream out = connection.getOutputStream(); // 创建输入输出流
+            String param = getParamXml(trade_type, product_id, body, out_trade_no, total_fee, null, time_start, time_expire,
+                    Constant.WZ);
+            out.write(param.getBytes("UTF-8")); // 将参数输出到连接
+            out.flush(); // 输出完成后刷新并关闭流
+            out.close(); // 重要且易忽略步骤 (关闭流,切记!)
+
+            InputStream fin = connection.getInputStream();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fin, "utf-8"));
+            String str = reader.readLine();
+            while (str != null)
+            {
+                resultStr.append(str);
+                str = reader.readLine();
+            }
+
+            MyMongo.mLog("INFO", "微信统一下单(扫码支付)", resultStr);
+
+            // 解析返回的数据
+            return parseQRReturnXML(resultStr.toString());
+            // }
+        } catch (IOException e)
+        {
+            MyMongo.mErrorLog("微信统一下单(扫码支付)", e);
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信统一下单(扫码支付)", e);
+        }
+        return null;
+    }
+
+    /**
+     * 解析返回的数据(扫码支付)
+     *
+     * @param xml
+     * @return
+     */
+    private static Map<String, Object> parseQRReturnXML(String xml)
+    {
+        Map<String, Object> wxPayMap = new HashMap<String, Object>();
+        try
+        {
+            if (xml != null && xml.length() > 0)
+            {
+
+                if (!Signature.checkIsSignValidFromResponseString(xml))
+                {
+                    MyMongo.mLog("INFO", "微信统一下单(扫码支付)", "签名错误");
+                    return wxPayMap;
+                }
+                Document doc = DocumentHelper.parseText(xml);
+                Element root = doc.getRootElement();
+
+                String return_code = root.selectSingleNode("return_code").getText();
+
+                if ("SUCCESS".equals(return_code))
+                {
+                    String result_code = root.selectSingleNode("result_code").getText();
+                    if ("SUCCESS".equals(result_code))
+                    {
+                        wxPayMap.put("code_url", root.selectSingleNode("code_url").getText());
+                    } else
+                    {
+                        String err_code_des = root.selectSingleNode("err_code_des").getText();
+                        wxPayMap.put("err_code_des", err_code_des);
+                    }
+                } else
+                {
+                    String return_msg = root.selectSingleNode("return_msg").getText();
+                    wxPayMap.put("return_msg", return_msg);
+                }
+            }
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信统一下单(扫码支付)", e);
+        }
+        return wxPayMap;
+    }
+
+    /**
+     * 关闭订单
+     */
+    public static boolean closeOrder(String out_trade_no)
+    {
+        boolean flag = false;
+        String nonce_str = CodeUtil.getRandomUUID(32);
+
+        try
+        {
+            out_trade_no = out_trade_no.substring(0, out_trade_no.indexOf("_N"));
+
+            HttpURLConnection connection = null;
+
+            URL url = new URL(Configure.CLOSEORDER_API);
+            connection = (HttpURLConnection) url.openConnection();
+            connection.setDoOutput(true);// 设置连接输出流为true,默认false (post 请求是以流的方式隐式的传递参数)
+            connection.setDoInput(true); // 设置连接输入流为true
+            connection.setRequestProperty("Accept-Charset", "utf-8");
+            connection.setRequestProperty("contentType", "utf-8");
+            connection.setRequestMethod("POST"); // 设置请求方式为post
+            connection.setUseCaches(false); // post请求缓存设为false
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded"); // application/x-www-form-urlencoded->表单数据
+            connection.connect(); // 建立连接
+
+            Map<String, Object> param = new HashMap<String, Object>();
+            param.put("appid", Configure.getAppid());
+            param.put("mch_id", Configure.getMchid());
+            param.put("out_trade_no", out_trade_no);
+            param.put("nonce_str", nonce_str);
+
+            // 生成签名
+            String sign = Signature.getSign(param);
+            StringBuffer paramXml = new StringBuffer();
+            paramXml.append("<xml>");
+            paramXml.append("<appid>").append(Configure.getAppid()).append("</appid>");
+            paramXml.append("<mch_id>").append(Configure.getMchid()).append("</mch_id>");
+            paramXml.append("<nonce_str>").append(nonce_str).append("</nonce_str>");
+            paramXml.append("<out_trade_no>").append(out_trade_no).append("</out_trade_no>");
+            paramXml.append("<sign>").append(sign).append("</sign>");
+            paramXml.append("</xml>");
+
+            OutputStream out = connection.getOutputStream(); // 创建输入输出流
+            out.write(paramXml.toString().getBytes("UTF-8"));
+            out.flush();
+            out.close();
+
+            InputStream fin = connection.getInputStream();
+
+            BufferedReader reader = new BufferedReader(new InputStreamReader(fin, "utf-8"));
+            StringBuffer resultStr = new StringBuffer();
+            String str = reader.readLine();
+            while (str != null)
+            {
+                resultStr.append(str);
+                str = reader.readLine();
+            }
+            MyMongo.mLog("INFO", "微信-关闭订单", "【入参】" + paramXml + ",【返回】" + resultStr);
+
+            if (resultStr != null && resultStr.length() > 0)
+            {
+                if (!Signature.checkIsSignValidFromResponseString(resultStr.toString()))
+                {
+                    MyMongo.mLog("INFO", "微信-关闭订单", "签名错误");
+                }
+                Document doc = DocumentHelper.parseText(resultStr.toString());
+                Element root = doc.getRootElement();
+                String return_code = root.selectSingleNode("return_code").getText();
+
+                if ("SUCCESS".equals(return_code))
+                {
+                    flag = true;
+                }
+            }
+        } catch (IOException e)
+        {
+            MyMongo.mErrorLog("微信-关闭订单", e);
+        } catch (Exception e)
+        {
+            MyMongo.mErrorLog("微信-关闭订单", e);
+        }
+        return flag;
+    }
+}

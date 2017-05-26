@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="item">
+    <select id="select" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+       SELECT
+            pti.itemid,
+            pti.itemname,
+            pti.theme_img,
+            pti.introduction,
+            pts.hallid,
+            pti.starttime,
+            pti.image_path_arr,
+            pti.vedio_path_arr,
+            ptv.venuename,
+            pta1.areaname,
+            MIN(ptt.price) price
+        FROM
+            pt_item pti
+        left JOIN pt_venue ptv ON pti.venueid = ptv.venueid
+        JOIN pt_sessions pts ON pti.itemid=pts.itemid
+        LEFT JOIN pt_area pta ON ptv.areaid=pta.areaid
+        left JOIN pt_ticketprice ptt ON pts.sessionsid=ptt.sessionsid
+        left JOIN pt_area pta1 ON pta1.areaid=pta.fareaid
+        WHERE pti.itemid=#{itemid}
+        GROUP BY pti.itemid
+
+
+    </select>
+
+</mapper>

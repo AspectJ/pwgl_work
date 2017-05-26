@@ -1,0 +1,89 @@
+package com.ydp.pwgl.wx.service;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Set;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.pwgl.dubbo.faces.ILockSeatApiService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.typedef.UDException;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.DateForamtUtil;
+
+@Service
+public class OrderService extends BaseService implements IService {
+
+	@Autowired
+	ILockSeatApiService lockSeatApiService;
+	
+	//订单状态
+	public static enum ORDERSTATUS {UNPAY,HASPAY,OUTTICKET,RETURNMONEY,CANCEL,SENDOUT} ;
+
+	public OrderService() {
+		super(OrderService.class);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	public void service(Param param) throws Exception {
+		// TODO Auto-generated method stub
+
+	}
+	
+
+
+	/**
+	 * 获取座位排期表
+	 * @param param
+	 * @return
+	 */
+	public DataResult GetSeatMap(Param param){
+		return lockSeatApiService.GetSeatMap(param.getString("sessionsid"));
+	}
+	
+	/**
+	 * 检查是否未付款订单
+	 * @return
+	 */
+	private boolean HasUnPayOrder(){
+		return true;
+	}
+	
+
+	/**
+	 * 锁座
+	 * 
+	 * @param param
+	 * @throws Exception
+	 * 
+	 *订单状态:0:未支付:1：已支付2:已出票3:已退款4已取消5已发货
+	 */
+	@Transactional(rollbackFor = Exception.class)
+	public DataResult lock(Param param) throws Exception {	
+		DataResult result = new DataResult();
+		String sessionsid = param.getString("sessionsid");
+		String pewid = param.getString("pewid");
+		
+		// 检测是否已存在未付有效订单
+		
+		
+
+		// 产生订单于数据库及缓存
+		
+		
+
+		// 写订单成功锁座,失败则释放座位
+		result = lockSeatApiService.LockSeat(sessionsid, pewid);
+
+		return result;
+	}
+
+}

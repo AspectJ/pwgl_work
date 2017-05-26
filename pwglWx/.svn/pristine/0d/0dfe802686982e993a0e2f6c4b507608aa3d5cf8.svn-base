@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="Order">
+    <!--通过用户id获取该用户订单状态-->
+    <select id="getOrder"    resultType="java.util.Map">
+        SELECT u.telephone,s.sessionsname,s.playtime,a.* FROM   od_order a
+        JOIN od_orderop b ON a.orderid=b.orderid
+        JOIN pt_sessions s  ON a.sessionsid=s.sessionsid
+        JOIN pt_user u ON  u.userid=b.userid
+        WHERE b.userid=#{userid}
+        <if test="odstatus != null and odstatus != ''">
+            and o.odstatus = #{odstatus}
+        </if>
+    </select>
+    <!--通过订单id获取订单详情-->
+    <select id="getOrderXq"  resultType="java.util.Map">
+        SELECT  p.row,p.pewname,d.pewid,b.userid,u.telephone,s.sessionsname,s.playtime,o.* FROM   od_order o
+        JOIN od_orderop b ON o.orderid=b.orderid
+        JOIN pt_sessions s  ON o.sessionsid=s.sessionsid
+        JOIN pt_user u ON  u.userid=b.userid
+        JOIN od_detail d ON d.orderid=o.orderid
+        JOIN pt_hall_pew p on p.pewid=d.pewid
+        AND o.orderid=#{orderid}
+        <if test="odstatus != null and odstatus != ''">
+            and o.odstatus = #{odstatus}
+        </if>
+    </select>
+    <!-- 查询订单状态变化信息 -->
+    <select id="getRecordOrderStatus"  resultType="java.util.Map">
+        select o.orderid,o.odstatus from od_order o
+        where orderid = #{orderid}
+        <if test="odstatus != null and odstatus != ''">
+            and o.odstatus = #{odstatus}
+        </if>
+    </select>
+    <!--修改易得票订单表状态-->
+    <update id="updateOrderPayStatus" parameterType="java.util.Map">
+        update od_order o set o.paystatus= #{paystatus} where o.orderid= #{orderid};
+    </update>
+</mapper>

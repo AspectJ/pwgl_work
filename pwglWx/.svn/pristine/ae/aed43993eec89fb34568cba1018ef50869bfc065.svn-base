@@ -1,0 +1,153 @@
+package com.ydp.pwgl.wx.controller;
+
+import java.io.IOException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.BaseController;
+import com.ydp.pwgl.dubbo.faces.ILockSeatApiService;
+import com.ydp.pwgl.wx.service.OrderService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.typedef.UDException;
+import com.ydp.util.CodeUtil;
+
+@Service
+@Path("/rest/seat")
+public class OrderController extends BaseController {
+
+	@Autowired
+	OrderService orderService;
+
+	public OrderController() {
+		super(OrderController.class);
+		// TODO Auto-generated constructor stub
+	}
+
+	/*
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/init")
+	@Produces("application/json;charset=UTF-8")
+	public DataResult init(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		DataResult result = new DataResult();
+		Param param = new Param(request);
+
+		try {
+			if (!CodeUtil.checkMapValue(param, "sessionsid")
+					|| !CodeUtil.checkMapValue(param, "endtime")) {
+				result.setStatusCode(StatusCode.MissingParams);
+				return result;
+			}
+
+			result = lockSeatApiService.InitSeatMap(
+					param.getString("sessionsid"), param.getString("endtime"));
+
+			return result;
+		} catch (Exception e) {
+			getLogger().error("初始化缓存座位map失败");
+			result.setData(StatusCode.SeatInitFailed);
+			return result;
+		}
+	}*/
+
+	/**
+	 * 获取座位排期
+	 * 
+	 * @param request
+	 * @param response
+	 * @throws ServletException
+	 * @throws IOException
+	 */
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/list")
+	@Produces("application/json;charset=UTF-8")
+	public DataResult list(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+		
+		DataResult result = new DataResult();
+		Param param = new Param(request);
+		
+		try {
+			if (!CodeUtil.checkMapValue(param, "sessionsid")){
+				result.setStatusCode(StatusCode.MissingParams);
+				return result;
+			}
+			result = orderService.GetSeatMap(param);
+			return result;
+		} catch (Exception e) {
+			getLogger().error("摘取座位map失败");
+			result.setData(StatusCode.SeatMapGotFailed);
+			return result;
+		}
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/lock")
+	@Produces("application/json;charset=UTF-8")
+	public DataResult lock(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		// http://localhost:8082/wx/rest/seat/lock?sessionsid=13517DRNe0000001&pewid=13517DRNe0000304
+
+		DataResult result = new DataResult();
+		Param param = new Param(request);
+		if (!CodeUtil.checkMapValue(param, "sessionsid")
+				|| !CodeUtil.checkMapValue(param, "pewid")) {
+
+			result.setStatusCode(StatusCode.MissingParams);
+			return result;
+		}
+		
+		
+		try {
+			result = orderService.lock(param);
+		} catch (Exception e) {
+			getLogger().error(e.getMessage());
+			result.setStatusCode(StatusCode.SysException);
+		}
+/*
+		try {
+			// 1.预定订单
+
+			// 2.销售政策、座位等级校验等逻辑
+
+			// 3.调接口锁座
+			result = lockSeatApiService.LockSeat(param.getString("sessionsid"),
+					param.getString("pewid"));
+			getLogger().debug("锁座接口返回:{}", result);
+
+			// 4.锁座失败,取消订单
+			if (!result.Success()) {
+				getLogger().error("锁座接口失败:{}", result);
+			}
+		} catch (Exception e) {
+			getLogger().error("锁座失败:{}", e.getMessage());
+			result.setStatusCode(StatusCode.SeatLockFailed);
+		}
+*/
+		return result;
+	}
+}

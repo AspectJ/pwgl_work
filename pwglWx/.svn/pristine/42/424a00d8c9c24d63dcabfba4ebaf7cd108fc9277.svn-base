@@ -1,0 +1,56 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="UserMapper">
+
+	<!-- 判断openid是否已经注册 -->
+	<select id="getUserid" parameterType="java.lang.String"
+		resultType="java.lang.Integer">
+		select uid from pt_user_extend where openid = #{openid}
+	</select>
+	<!-- openid注册 -->
+	<insert id="InsertUser" parameterType="java.util.Map">
+		insert pt_user(username,realname,pass,sex,cid,ctime,mid,mtime) values(#{username},#{realname},#{pass},#{sex},#{cid},#{ctime},#{mid},#{mtime})
+		<selectKey resultType="java.lang.Integer" keyProperty="uid"
+			order="AFTER">
+			SELECT @@IDENTITY
+		</selectKey>
+	</insert>
+	<insert id="InsertExtendUser" parameterType="java.util.Map">
+		insert into pt_user_extend(uid,openid,provider,access_token,refresh_token,nick,logo)
+		values(#{uid}, #{openid}, #{provider}, #{access_token},#{refresh_token},#{nick},#{headimgurl})
+	</insert>
+
+	<!-- 通过用户id查询openid -->
+	<select id="getUserOpenid" parameterType="java.lang.String"
+		resultType="java.lang.String">
+		select openid from pt_user_extend where uid = #{uid}
+	</select>
+	
+	<!-- 写短信 -->
+	<insert id="InsertSms" parameterType="java.util.Map">
+		insert into pt_sms_task(mobilenumber,smscontent,smstype)
+		values(#{mobilenumber}, #{smscontent}, #{smstype})
+	</insert>
+	
+	<!-- 查验短信 -->
+	<select id="GetSms" parameterType="java.util.Map"
+		resultType="java.lang.String">
+		select smscreatetime from pt_sms_task where mobilenumber = #{mobilenumber}
+		<if test="smscontent != null and smscontent != ''">
+		 and smscontent=#{smscontent}
+		</if>
+	</select>
+	
+	<!-- 删除短信 -->
+	<select id="DelSms" parameterType="java.lang.String">
+		delete  from pt_sms_task where mobilenumber = #{mobilenumber}
+	</select>
+	
+	<!-- 更新身份证号码 -->
+	<select id="updateIdentifyNo" parameterType="java.util.Map">
+		update pt_user set IdentifyNo =  #{identifyno} where userid = #{uid}
+	</select>
+
+</mapper>

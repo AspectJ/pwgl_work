@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xmlns:aop="http://www.springframework.org/schema/aop"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:flow="http://www.springframework.org/schema/webflow-config"
+	xmlns:jms="http://www.springframework.org/schema/jms" xmlns:jee="http://www.springframework.org/schema/jee"
+	xmlns:lang="http://www.springframework.org/schema/lang" xmlns:osgi="http://www.springframework.org/schema/osgi"
+	xmlns:tx="http://www.springframework.org/schema/tx" xmlns:util="http://www.springframework.org/schema/util"
+	xmlns:p="http://www.springframework.org/schema/p" xmlns:dubbo="http://code.alibabatech.com/schema/dubbo"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans http://www.springframework.org/schema/beans/spring-beans-3.0.xsd
+       http://www.springframework.org/schema/aop http://www.springframework.org/schema/aop/spring-aop-3.0.xsd
+       http://www.springframework.org/schema/context http://www.springframework.org/schema/context/spring-context-3.0.xsd
+       http://www.springframework.org/schema/webflow-config http://www.springframework.org/schema/webflow-config/spring-webflow-config-1.0.xsd
+       http://www.springframework.org/schema/jms http://www.springframework.org/schema/jms/spring-jms-3.0.xsd
+       http://www.springframework.org/schema/jee http://www.springframework.org/schema/jee/spring-jee-3.0.xsd
+       http://www.springframework.org/schema/lang http://www.springframework.org/schema/lang/spring-lang-3.0.xsd
+       http://www.springframework.org/schema/osgi http://www.springframework.org/schema/osgi/spring-osgi.xsd
+       http://www.springframework.org/schema/tx http://www.springframework.org/schema/tx/spring-tx-3.0.xsd
+       http://www.springframework.org/schema/util http://www.springframework.org/schema/util/spring-util-3.0.xsd
+       http://code.alibabatech.com/schema/dubbo
+     http://code.alibabatech.com/schema/dubbo/dubbo.xsd">
+
+	<!-- 提供方应用信息，用于计算依赖关系 -->
+	<dubbo:application name="pwgl-wxcontrol" />
+
+	<!--zookeeper注册中心 -->
+	<dubbo:registry protocol="zookeeper" address="192.168.195.5:2181"
+		timeout="10000" wait="5000" />
+
+	<!-- 用dubbo协议在20880端口暴露服务 -->
+	<dubbo:protocol name="dubbo" port="20880" />
+
+	<!-- forking - 并行调用多个服务器，只要一个成功即返回，通常用于实时性要求较高的读操作 -->
+	<!-- broadcast - 广播调用所有提供者，逐个调用，任意一台报错则报错，通常用于更新提供方本地状态 -->
+	<!-- failsafe - 失败安全，出现异常时，直接忽略，通常用于写入审计日志等操作 -->
+	<!-- failover - 失败自动切换，当出现失败，重试其它服务器，通常用于读操作（推荐使用） -->
+	<dubbo:reference id="lockSeatApiService"
+		interface="com.ydp.pwgl.dubbo.faces.ILockSeatApiService" check="false"
+		timeout="120000" version="1.0.0" cluster="failover" retries="5" />
+	<dubbo:reference id="sessionsMgrService"
+		interface="com.ydp.pwgl.dubbo.faces.ISessionsMgrService" check="false"
+		timeout="120000" version="1.0.0" cluster="failover" retries="5" />
+
+
+</beans>
