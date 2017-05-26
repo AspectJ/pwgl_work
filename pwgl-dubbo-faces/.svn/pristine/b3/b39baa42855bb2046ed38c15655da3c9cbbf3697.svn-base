@@ -1,0 +1,44 @@
+package com.ydp.pwgl.dubbo.faces;
+
+import java.util.List;
+
+import com.ydp.pwgl.dubbo.entity.Seat;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.StatusCode;
+
+public interface ILockSeatApiService {
+	/**
+	 * 初始化场次座位表
+	 * @param sessionsid
+	 * @param endtime
+	 * @return
+	 */
+	 public DataResult InitSeatMap(String sessionsid,String endtime);
+	 
+	 /**
+	  * 停止场次销售
+	  * @param sessionsid
+	  * @return
+	  */
+	 public DataResult DelSeatMap(String sessionsid);
+	 
+	 
+	 /**
+	  * 锁座
+	  * @param sessionsid
+	  * @param pewid
+	  * @return
+	  */
+	 public DataResult LockSeat(String sessionsid,String pewid);
+	 
+
+	 /**
+	  * 供接口调用获取座位数据
+	  * @param sessionsid
+	  * @return
+	  */
+	 public DataResult GetSeatMapForApi(String sessionsid);
+
+	 
+}
+

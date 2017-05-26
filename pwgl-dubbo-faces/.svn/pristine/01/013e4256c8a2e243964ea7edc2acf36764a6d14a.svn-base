@@ -1,0 +1,7 @@
+package com.ydp.pwgl.dubbo.faces;
+
+import com.ydp.typedef.DataResult;
+
+public interface ILockSeatApiService {
+	 public DataResult LoadSeatMap(String sessionsid);
+}
