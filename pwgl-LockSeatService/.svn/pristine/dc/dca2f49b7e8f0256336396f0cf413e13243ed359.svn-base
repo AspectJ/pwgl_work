@@ -1,0 +1,141 @@
+package com.ydp.pwgl.service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.IRedisClient;
+import com.ydp.pwgl.dubbo.entity.Seat;
+
+@Service
+public class LockSeatApiRedisService {
+	private static Logger logger = LoggerFactory
+			.getLogger(LockSeatApiRedisService.class);
+
+	@Autowired
+	private IRedisClient redisClient;
+	private static final String SEATMAP = "seatmap";
+	private static final int EXPIREDFORAPI = 3600;
+	private static final String UNPAYSEAT = "unpayseat";
+
+	/**
+	 * 供接口调用获取排期座位信息
+	 * 
+	 * @param sessionsid
+	 * @return
+	 */
+	public List<Seat> GetSeatMap(String sessionsid) {
+		try {
+			// String key = SEATMAPFORAPI + ":" + sessionsid;
+			// return (List<Seat>) redisClient.bget(key);
+
+			String key = SEATMAP + ":" + sessionsid + "*";
+			Set<String> keys = redisClient.keys(key);
+
+			if (keys.size() == 0)
+				return null;
+			long begin = System.currentTimeMillis();
+			Object[] okey = keys.toArray();
+			List<Seat> lst = redisClient.mbget(okey);
+
+			long end = System.currentTimeMillis();
+			logger.info("begin:{},end:{},total:{}", begin, end, end - begin);
+			return lst;
+		} catch (Exception e) {
+			logger.error(e.getMessage());
+		}
+		return null;
+	}
+
+	/**
+	 * 将座位图存于缓存
+	 * 
+	 * @param sessionsid
+	 * @param list
+	 */
+	public void InitSeatMap(String sessionsid, List<Seat> list, int Expired) {
+		try {
+			String key = SEATMAP + ":" + sessionsid + ":";
+			for (Seat seat : list) {
+				redisClient.bset(key + seat.getPewid(), seat);
+				redisClient.expire(key + seat.getPewid(), Expired);
+			}
+
+		} catch (Exception e) {
+			logger.error(e.getMessage());
+		}
+	}
+
+	/**
+	 * 取单位座位信息
+	 * 
+	 * @param sessionsid
+	 * @param pewid
+	 * @return
+	 */
+	public Seat GetSeat(String sessionsid, String pewid) {
+		String key = SEATMAP + ":" + sessionsid + ":" + pewid;
+		return (Seat) redisClient.bget(key);
+	}
+
+	/**
+	 * 事务方式乐观锁修改值
+	 * 
+	 * @param sessionsid
+	 * @param pewid
+	 * @param seat
+	 * @return
+	 */
+	public boolean SetSeat(String sessionsid, String pewid, Seat seat) {
+		String key = SEATMAP + ":" + sessionsid + ":" + pewid;
+		boolean ret = redisClient.bset_trans(key, seat);
+
+		return ret;
+	}
+
+	/**
+	 * 删除座位映射表
+	 * 
+	 * @param sessionsid
+	 * @return
+	 */
+	public boolean DelSeatMap(String sessionsid) {
+		String key = SEATMAP + ":" + sessionsid + "*";
+		Set<String> keys = redisClient.keys(key);
+		if (keys.size() == 0)
+			return false;
+
+		redisClient.bdel(keys.toArray());
+		return true;
+	}
+
+	/**
+	 * 未支付座位写入缓存
+	 * 
+	 * @param sessionsid
+	 * @param pewid
+	 */
+	public boolean AddUnPaySeatQueue(String sessionsid, String pewid) {
+		String key = UNPAYSEAT + ":" + sessionsid;
+		return redisClient.zadd(key, System.currentTimeMillis(), pewid);
+	}
+
+	/**
+	 * 释放15分钟未支付座位
+	 * 
+	 * @param timeInterval 默认15分钟 单位：秒
+	 */
+	public Set<String> UnLockUnPaySeatQueue(long timeIntervalSeconds) {
+		if (timeIntervalSeconds <= 0) timeIntervalSeconds = 900;
+		Set<String> keys = redisClient.keys(UNPAYSEAT + ":*");
+		if (keys == null || keys.size() == 0) return null;
+      
+		return keys;
+	}
+}

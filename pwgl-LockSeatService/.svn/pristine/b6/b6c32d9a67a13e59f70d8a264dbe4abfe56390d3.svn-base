@@ -1,0 +1,78 @@
+package com.ydp.pwgl.service;
+
+import java.util.List;
+
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.pwgl.dubbo.entity.Seat;
+import com.ydp.pwgl.dubbo.faces.ILockSeatApiService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.util.Dao;
+
+@Service
+public class LockSeatApiService extends BaseService implements IService,ILockSeatApiService {
+
+	public LockSeatApiService() {
+		super(LockSeatApiService.class);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	public void service(Param param) throws Exception {
+		// TODO Auto-generated method stub
+
+	}
+	
+	
+	/**
+	 * 加载排期座位表至缓存
+	 * @param itemid
+	 */
+	@Override
+    public DataResult LoadSeatMap(String sessionsid){
+    	DataResult result = new DataResult();
+    	try{
+    		Dao dao = getDao(); 
+    		List<Seat> lst = dao.getSqlSession().selectList("LocakSeatApiMapper.getSeatBySessionsId", sessionsid);
+    		result.setStatusCode(StatusCode.Success);
+    		result.setData(lst);
+    	}catch(Exception e){
+    		getLogger().error(e.getMessage());
+    		result.setStatusCode(StatusCode.SysException);
+    	}
+    	
+    	return result;
+    }
+    
+    /**
+     * 锁座
+     * @param itemid
+     * @param pewid
+     */
+    public DataResult LockSeat(String sessionsid,String pewid){
+    	return null;
+    }
+    
+    /**
+     * 释放座位
+     * @param itemid
+     * @param pewid
+     * @return
+     */
+    public DataResult ReleaseSeat(String sessionsid,String pewid){
+    	return null;
+    }
+    
+    /**
+     * 同步已锁定座位
+     * @param itemid
+     * @return
+     */
+    public DataResult SyncLockedSeatMap(String itemid){
+    	return null;
+    }
+}

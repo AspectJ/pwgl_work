@@ -1,0 +1,105 @@
+package com.ydp.pwgl.service;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.IRedisClient;
+import com.ydp.pwgl.dubbo.entity.Seat;
+
+@Service
+public class LockSeatApiRedisService {
+	private static Logger logger = LoggerFactory.getLogger(LockSeatApiRedisService.class);
+	
+	@Autowired
+	private IRedisClient redisClient;
+	private static final String SEATMAP = "seatmap";
+	private static final String SEATMAPFORAPI = "seatmapforapi";
+	private static final int EXPIREDFORAPI = 3600;
+	
+	
+	/**
+	 * 供接口设置排期座位信息
+	 * @param sessionsid
+	 * @param obj
+	 */
+	public void SetSeatMapForApi(String sessionsid, List<Seat> obj) {
+		try {
+			String key = SEATMAPFORAPI + ":" +  sessionsid;
+			redisClient.bset(key, obj);
+			redisClient.expire(key, EXPIREDFORAPI);
+		} catch (Exception e) {
+			logger.error(e.getMessage());
+		}
+	}
+	
+	/**
+	 * 供接口调用获取排期座位信息
+	 * @param sessionsid
+	 * @return
+	 */
+	public List<Seat> GetSeatMapForApi(String sessionsid) {
+		try {
+			String key = SEATMAPFORAPI + ":" +  sessionsid;
+			return (List<Seat>) redisClient.bget(key);
+		} catch (Exception e) {
+			logger.error(e.getMessage());
+		}
+		return null;
+	}
+	
+	
+	
+
+	/**
+	 * 将座位图存于缓存
+	 * @param sessionsid
+	 * @param list
+	 */
+	public void InitSeatMap(String sessionsid, List<Seat> list,int Expired) {
+		try {
+			String key  = SEATMAP+":"+sessionsid + ":";
+			for (Seat seat : list) {
+				redisClient.bset(key + seat.getPewid(),seat);
+				redisClient.expire(key + seat.getPewid(), Expired);
+			}
+			
+		} catch (Exception e) {
+			logger.error(e.getMessage());
+		}
+	}
+	
+	
+	
+	/**
+	 * 取单位座位信息
+	 * @param sessionsid
+	 * @param pewid
+	 * @return
+	 */
+	public Seat GetSeat(String sessionsid,String pewid){
+		String key  = SEATMAP+":"+sessionsid + ":" + pewid;	
+		return (Seat)redisClient.bget(key);
+	}
+	
+	/**
+	 * 事务方式乐观锁修改值
+	 * @param sessionsid
+	 * @param pewid
+	 * @param seat
+	 * @return
+	 */
+	public boolean SetSeat(String sessionsid,String pewid,Seat seat){
+		String key  = SEATMAP+":"+sessionsid+ ":" + pewid;
+		String ret = redisClient.bset(key, seat);
+		
+		return ret!=null;
+	}
+	
+}

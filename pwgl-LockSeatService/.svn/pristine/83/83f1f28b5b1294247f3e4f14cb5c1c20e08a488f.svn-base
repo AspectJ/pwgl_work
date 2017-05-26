@@ -1,0 +1,229 @@
+package com.ydp.pwgl.service;
+
+import java.util.Date;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.pwgl.dubbo.entity.Seat;
+import com.ydp.pwgl.dubbo.faces.ILockSeatApiService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.Dao;
+import com.ydp.util.DateForamtUtil;
+
+@Service
+public class LockSeatApiService extends BaseService implements IService,
+		ILockSeatApiService {
+	@Autowired
+	private LockSeatApiRedisService lockSeatApiRedisService;
+	
+	//座位状态
+	public static final String PEWSTATUS_UNDEFINED = "";
+	public static final String PEWSTATUS_CANSELL = "1";
+	public static final String PEWSTATUS_NOSELL = "2";
+	public static final String PEWSTATUS_SELLED = "3";
+
+	public LockSeatApiService() {
+		super(LockSeatApiService.class);
+		// TODO Auto-generated constructor stub
+	}
+
+	@Override
+	public void service(Param param) throws Exception {
+		// TODO Auto-generated method stub
+
+	}
+
+	/**
+	 * 加载排期座位表至缓存(后台调用)
+	 * 
+	 * @param sessionsid
+	 * @param endtime
+	 *            :过期时间,设置为场次结束时间
+	 */
+	@Override
+	public DataResult InitSeatMap(String sessionsid, String endtime) {
+		DataResult result = new DataResult();
+		try {
+			List<Seat> lst = getDao().getSqlSession().selectList(
+					"LocakSeatApiMapper.getSeatBySessionsId", sessionsid);
+			if (lst != null) {
+				Date dend = DateForamtUtil.to_yyyy_MM_dd_HH_mm_ss_date(endtime);
+				int expired = (int) (dend.getTime() / 1000);
+				lockSeatApiRedisService.InitSeatMap(sessionsid, lst, expired);
+				result.setStatusCode(StatusCode.Success);
+				getLogger().error("初始化获取座位排期数据:成功,过期时间为:{}秒", expired);
+			} else {
+				result.setStatusCode(StatusCode.SessionsSeatNull);
+				getLogger()
+						.error("初始化获取座位排期数据:{}", StatusCode.SessionsSeatNull);
+			}
+		} catch (Exception e) {
+			getLogger().error("初始化获取掩藏数据:{}", e.getMessage());
+			result.setStatusCode(StatusCode.SysException);
+		}
+
+		return result;
+	}
+
+	/**
+	 * 后台发起演出结束命令,清空缓存
+	 */
+	@Override
+	public DataResult DelSeatMap(String sessionsid) {
+		DataResult result = new DataResult();
+		return result;
+	}
+
+	@Override
+	public DataResult GetSeatMapForApi(String sessionsid) {
+		DataResult result = new DataResult();
+		try {
+			List<Seat> lst = lockSeatApiRedisService
+					.GetSeatMapForApi(sessionsid);
+			if (lst == null) {
+				lst = getDao().getSqlSession().selectList(
+						"LocakSeatApiMapper.getSeatBySessionsId", sessionsid);
+				if (lst != null) {
+					lockSeatApiRedisService.SetSeatMapForApi(sessionsid, lst);
+					result.setStatusCode(StatusCode.Success);
+					result.setData(lst);
+				} else
+					result.setStatusCode(StatusCode.SessionsSeatNull);
+			} else {
+				result.setStatusCode(StatusCode.Success);
+				result.setData(lst);
+			}
+		} catch (Exception e) {
+			getLogger().error("初始化获取掩藏数据:{}", e.getMessage());
+			result.setStatusCode(StatusCode.SysException);
+		}
+
+		return result;
+	}
+
+	/**
+	 * 更新座位状态
+	 * 
+	 * @param param
+	 */
+	public void UpdateLockSeat(Param param) {
+		try {
+			int n = getDao().getSqlSession().update(
+					"LocakSeatApiMapper.updateSeat", param);
+			CheckDBOpr("updateSeat", n);
+		} catch (Exception e) {
+			getLogger().error(e.getMessage());
+		}
+	}
+
+	/**
+	 * 锁座
+	 * 
+	 * @param itemid
+	 * @param pewid
+	 */
+	@Override
+	public DataResult LockSeat(String sessionsid, String pewid) {
+		DataResult result = new DataResult();
+		Seat seat = null;
+		try {
+			seat = lockSeatApiRedisService.GetSeat(sessionsid, pewid);
+			
+			if (seat == null){
+				result.setStatusCode(StatusCode.SeatNotFound);
+				return result;
+			}
+			
+			/*
+
+			if (CodeUtil.checkParam(seat.getIspresell())
+					|| !seat.getIspresell().equals("1")) {
+				result.setStatusCode(StatusCode.SeatNoPresale);
+				return result;
+			}
+
+			if (CodeUtil.checkParam(seat.getIssale())
+					|| seat.getIssale().equals("1")) {
+				result.setStatusCode(StatusCode.SeatNoSale);
+				return result;
+			}
+
+			if (CodeUtil.checkParam(seat.getStatus())
+					|| seat.getStatus().equals("1")) {
+				result.setStatusCode(StatusCode.SeatDisabled);
+				return result;
+			}
+
+			if (CodeUtil.checkParam(seat.getDelstatus())
+					|| seat.getDelstatus().equals("1")) {
+				result.setStatusCode(StatusCode.SeatDeleted);
+				return result;
+			}*/
+
+			if (!CodeUtil.checkParam(seat.getPewstatus()) && !seat.getPewstatus().equals(PEWSTATUS_CANSELL)) {
+				result.setStatusCode(StatusCode.SeatLocked);
+				return result;
+			}
+
+			// 设置被锁定设置不可售状态
+			seat.setPewstatus(PEWSTATUS_NOSELL);
+			boolean bret = lockSeatApiRedisService.SetSeat(sessionsid, pewid, seat);
+
+			if (bret) {
+				try {
+					// 写数据库
+					Param param = new Param();
+					param.put("sessionsid", sessionsid);
+					param.put("pewid", pewid);
+					param.put("pewstatus", seat.getPewstatus());
+					UpdateLockSeat(param);
+					result.setStatusCode(StatusCode.Success);
+				} catch (Exception e) {//写数据库失败,恢复可售状态
+					getLogger().error("写锁座数据库状态失败,准备回退到初始状态:{}",e.getMessage());
+					seat.setPewstatus(PEWSTATUS_CANSELL);
+					bret = lockSeatApiRedisService.SetSeat(sessionsid, pewid, seat);
+					result.setStatusCode(StatusCode.SeatLockFailed);
+					return result;
+				}				
+			} else {
+				getLogger().error("写锁座缓存状态失败");
+				result.setStatusCode(StatusCode.SeatLockFailed);
+			}
+
+		} catch (Exception e) {
+			getLogger().error("锁座接口意外错误:{}", e.getMessage());
+			result.setStatusCode(StatusCode.SysException);
+		}
+
+		return result;
+	}
+
+	/**
+	 * 释放座位
+	 * 
+	 * @param itemid
+	 * @param pewid
+	 * @return
+	 */
+	public DataResult ReleaseSeat(String sessionsid, String pewid) {
+		return null;
+	}
+
+	/**
+	 * 同步已锁定座位
+	 * 
+	 * @param sessionsid
+	 * @return
+	 */
+	public DataResult SyncLockedSeatMap(String sessionsid) {
+		return null;
+	}
+}
