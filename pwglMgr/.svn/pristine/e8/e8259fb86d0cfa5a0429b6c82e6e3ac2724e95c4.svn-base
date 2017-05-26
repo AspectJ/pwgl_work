@@ -1,0 +1,29 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="schedule">
+    <select id="getPlans" parameterType="com.ydp.typedef.Param" resultType="com.ydp.pwgl.expandbean.SessionExpand">
+        SELECT d.price,e.venuename,a.itemname,b.hallname,c.* FROM pt_sessions c
+        LEFT OUTER  JOIN (
+        SELECT i.itemid,i.itemname,r.iscancel,r.ispresell,r.issale FROM  pt_item  i
+        LEFT OUTER JOIN pt_reserveallot r ON i.itemid=r.itemid
+        ) a ON c.itemid=a.itemid
+        LEFT OUTER JOIN pt_hall b ON c.hallid=b.hallid
+        LEFT OUTER JOIN  pt_venue e ON c.venueid=e.venueid
+        LEFT OUTER JOIN  (
+        select a.sessionsid,min(a.price) as price from pt_sessnpew a
+        left outer join pt_sessions b on a.sessionsid=b.sessionsid
+        group by a.sessionsid
+        ) d   ON  c.sessionsid=d.sessionsid
+        WHERE   c.endtime>now()
+        AND   now()>c.begintime
+            <if test="venueid != null and venueid != ''">
+                AND c.venueid = #{venueid}
+            </if>
+                order by  playtime desc
+            <if test="offsetNum != null and limitSize != null">
+                LIMIT #{offsetNum}, #{limitSize}
+            </if>
+    </select>
+</mapper>

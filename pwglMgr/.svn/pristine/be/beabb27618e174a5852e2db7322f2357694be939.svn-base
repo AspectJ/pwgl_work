@@ -1,0 +1,164 @@
+package com.ydp.pwgl.service.item;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.pwgl.entity.Item;
+import com.ydp.typedef.*;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.Dao;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Created by john on 2017/4/27.
+ */
+@Service
+public class ItemService extends BaseService implements IService {
+
+    public ItemService() {
+        super(ItemService.class);
+    }
+
+    Dao dao = null;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void service(Param param) throws Exception {
+        this.dao = getDao();
+        DataResult result = new DataResult();
+
+        try {
+            //从请求参数获取操作类型
+            String action = param.get("action").toString();
+
+            //写日志
+            getLogger().debug(action);
+
+            //根据操作类型路由
+            if (action.equals(Constant.ACTION_SEL)) {
+                /** 条件查询项目信息 */
+                List<Item> resultList = this.findItemByCriteria(param);
+                /** 条件查询项目信息总数 */
+                Integer resultCount = this.findItemByCriteriaCount(param);
+                result.setData(resultList);
+                result.setTotal(resultCount);
+                result.setStatusCode(StatusCode.Success);
+                param.setResult(result);
+
+            } else if (action.equals(Constant.ACTION_DEL)) {
+                /** 删除项目信息 */
+                this.deleteItem(param);
+                result.setStatusCode(StatusCode.Success);
+                param.setResult(result);
+
+            } else if(action.equals(Constant.ACTION_INS)) {
+                /** 幂等性操作--去重 */
+                Integer repeatCount = this.checkRepeat(param);
+                if(repeatCount != null && repeatCount > 0) {
+                    result.setStatusCode(StatusCode.Item_IS_Exsits);
+                    param.setResult(result);
+                    return;
+                }
+
+                /** 插入项目信息 */
+                this.insertItem(param);
+                Map<String, Object> resultMap = new HashMap<String, Object>();
+                resultMap.put("itemid", param.get("itemid"));
+                result.setData(resultMap);
+                param.setResult(result);
+            } else if(action.equals(Constant.ACTION_UPD)) {
+                /** 项目名称去重*/
+                Integer repeatCount = this.checkRepeat(param);
+                if(repeatCount != null && repeatCount > 0) {
+                    result.setStatusCode(StatusCode.Item_IS_Exsits);
+                    param.setResult(result);
+                    return;
+                }
+
+                /** 更新项目信息 */
+                this.updateItem(param);
+                result.setStatusCode(StatusCode.Success);
+                param.setResult(result);
+            }
+            else {
+                result.setStatusCode(StatusCode.UndefinedAction);
+            }
+        } catch (Exception e) {
+            result.setStatusCode(StatusCode.SysException);
+            //系统异常
+            throw new UDException(StatusCode.SysException, e);
+        }
+    }
+
+
+    /**
+     * 新增项目信息
+     * @param param
+     */
+    public void insertItem(Param param) {
+        dao.getSqlSession().insert("item.insertItem", param);
+    }
+
+    /**
+     * 幂等性操作--去重
+     * @param param
+     * @return
+     */
+    public Integer checkRepeat(Param param) {
+        Integer repeatCount = dao.getSqlSession().selectOne("item.checkRepeat", param);
+        return repeatCount;
+    }
+
+    /**
+     * 条件查询项目信息
+     */
+    public List<Item> findItemByCriteria(Param param) {
+        String page = (String) param.get("page");
+        String pagesize  = (String) param.get("pagesize");
+        if(!CodeUtil.checkParam(page, pagesize)) {
+            param.put("offsetNum", (Integer.parseInt(page) - 1) * Integer.parseInt(pagesize));		//从第多少条开始查询
+            param.put("limitSize", Integer.parseInt(pagesize));	//每页查询数据条数：例如10条
+        }
+        List<Item> resultList = dao.getSqlSession().selectList("item.findItemByCriteria", param);
+        return resultList;
+    }
+
+    /**
+     * 条件查询项目信息总数
+     * @param param
+     * @return
+     */
+    public Integer findItemByCriteriaCount(Param param) {
+        Integer resultCount = dao.getSqlSession().selectOne("item.findItemByCriteriaCount", param);
+        return resultCount;
+    }
+
+
+    /**
+     * 更新项目信息
+     * @param param
+     */
+    public void updateItem(Param param) {
+        dao.getSqlSession().update("item.updateItem", param);
+    }
+
+
+    /**
+     * 删除项目信息(同时删除文件)
+     * @param param
+     */
+    private void deleteItem(Param param) {
+        dao.getSqlSession().delete("item.deleteItem", param);
+
+        /** 删除项目的附件 */
+        /**        */
+    }
+
+
+
+
+}

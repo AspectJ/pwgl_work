@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ptUser">
+
+    <!-- 查询用户信息 -->
+    <select id="select"  parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+        select * from pt_user
+        <where>
+            <choose>
+                <when test="userid != null">userid =#{userid}</when>
+                <otherwise>
+                    <if test="username!=null and username != ''">and username like #{username}</if>
+                    <if test="telephone!=null and telephone != ''">and telephone like #{telephone}</if>
+                    <if test="status != null and status != ''">and status= #{status}</if>
+                </otherwise>
+            </choose>
+
+        </where>
+    </select>
+
+    <!-- 添加用户 -->
+    <insert id="save" parameterType="com.ydp.typedef.Param" keyProperty="userid" useGeneratedKeys="true">
+        INSERT INTO pt_user (username,pass,realname,spell,sex,age,telephone,email,addr,xzqh,ctime,cid)
+        VALUES (#{username},#{pass},#{realname},#{spell},#{sex},#{age},#{telephone},#{email},#{addr},#{xzqh},#{ctime},#{cid})
+    </insert>
+
+    <!--删除用户-->
+    <delete id="remove" parameterType="com.ydp.typedef.Param">
+        DELETE FROM pt_user WHERE userid=#{userid}
+    </delete>
+
+    <!--更新用户-->
+    <update id="update" parameterType="com.ydp.typedef.Param">
+        UPDATE pt_user
+        <set>
+            <if test="username != null and username != ''">username=#{username}</if>
+            <if test="pass != null and pass != ''">pass=#{pass}</if>
+            <if test="realname != null and realname != ''">realname=#{realname}</if>
+            <if test="sex != null and sex != ''">sex=#{sex}</if>
+            <if test="age != null ">age=#{age}</if>
+            <if test="telephone != null and telephone != ''">telephone=#{telephone}</if>
+            <if test="email != null and email != ''">email =#{email}</if>
+            <if test="addr != null and addr !=''">addr=#{addr}</if>
+            <if test="xzqh != null and xzqh !=''">xzqh=#{xzqh}</if>
+            <if test="mtime != null and mtime !=''">mtime =#{mtime}</if>
+            <if test="mid != null">mid=#{mid}</if>
+            <if test="status != null and status != ''">status =#{status}</if>
+        </set>
+        WHERE userid=#{userid}
+    </update>
+
+    <!--查询重复手机号或用户名-->
+    <select id="selectUsernameOrTelephone"  parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+        select * from pt_user
+        <where>
+            <if test="username!=null and username != ''">or username=#{username}</if>
+            <if test="telephone!=null and telephone != ''">or telephone=#{telephone}</if>
+        </where>
+    </select>
+</mapper>

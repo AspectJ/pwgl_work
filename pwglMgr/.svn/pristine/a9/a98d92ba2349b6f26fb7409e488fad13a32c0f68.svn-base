@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="venue">
+
+	<!-- 条件查询场馆信息 -->
+	<select id="findAllVenue" parameterType="com.ydp.typedef.Param" resultType="com.ydp.pwgl.entity.Venue">
+		SELECT * FROM pt_venue
+		<where>
+			<if test='status != null and (status == "0" or status == "1")'>
+				AND status = #{status}
+			</if>
+			<if test="venuename != null">
+				AND venuename LIKE '%${venuename}%'
+			</if>
+		</where>
+	</select>
+
+	<!-- 新增场馆信息 -->
+	<insert id="addVenue" parameterType="com.ydp.typedef.Param">
+		<selectKey keyProperty="venueid" order="AFTER" resultType="java.lang.Integer">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+		INSERT INTO pt_venue(venuename, address, areaid, introduction, cid, ctime)
+		VALUES(#{venuename}, #{address}, #{areaid}, #{introduction}, #{cid}, NOW())
+	</insert>
+
+	<!-- 幂等性去重 -->
+	<select id="checkRepeat" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_venue
+		WHERE venuename = #{venuename}
+		<if test="venueid != null">
+			AND venueid != #{venueid}
+		</if>
+	</select>
+
+	<!-- 更改场馆信息 -->
+	<update id="updateVenue" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_venue
+			SET venuename = #{venuename}, address = #{address},
+				areaid = #{areaid}, introduction = #{introduction},
+				mid = #{mid}, mtime = NOW()
+		WHERE venueid = #{venueid}
+	</update>
+
+	<!-- 更改场馆禁启状态 -->
+	<update id="changeStatus" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_venue SET `status` = #{status}
+		WHERE venueid = #{venueid}
+	</update>
+
+	<!-- 删除场馆信息 -->
+	<delete id="deleteVenue" parameterType="com.ydp.typedef.Param">
+		DELETE FROM pt_venue
+		WHERE venueid = #{venueid}
+	</delete>
+</mapper>

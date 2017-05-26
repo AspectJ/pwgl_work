@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+		<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+				"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ptUserRole">
+
+	<select id="select"  parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+		select * from pt_user_role where mtime>#{mtime}
+	</select>
+
+	<!--查询用户角色-->
+	<select id="selectUserRole" parameterType="java.lang.String" resultType="java.util.Map">
+		SELECT roles FROM pt_user ptu JOIN pt_role ptr ON ptu.roleid=ptr.roleid WHERE username=#{username}
+	</select>
+</mapper>

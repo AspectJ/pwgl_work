@@ -1,0 +1,93 @@
+package com.ydp.pwgl.service.order;
+
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.LinkedList;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+
+import org.slf4j.Logger;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.typedef.Constant;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.StatusCode;
+import com.ydp.typedef.UDException;
+import com.ydp.util.Dao;
+import com.ydp.util.ObjectTranscoder;
+
+@Service
+public class OrderService extends BaseService implements IService{
+	@Autowired
+	private OrderRedisService orderRedisService;
+	//调 父类构造
+	public OrderService(){
+		super(OrderService.class);
+	}
+	
+	//事务控制
+	@Override
+	@Transactional(rollbackFor=Exception.class)
+	public void service(Param param) throws Exception {
+		Dao dao = getDao();
+		DataResult result = new DataResult();
+		try{
+			//从请求参数获取操作类型
+			String action = param.get("action").toString();
+			if (action == null){
+				result.setStatusCode(StatusCode.UndefinedParam);
+				param.setResult(result);
+				return;
+			}
+			
+			//开启redis连接 选择0 索引库,默认为0库，可以不调用  
+			//getRedisClient().open(0);
+			
+			/*
+			Set<String> list = getRedisClient().keys("*"); 
+
+		    Object keys[] = list.toArray();
+		    for (int i=0;i<keys.length;i++){
+		    	if (keys[i].equals("userrole"))
+		         System.out.println("List of stored keys:: "+ keys[i].toString()); 
+		    }
+		*/
+			
+			//根据操作类型路由
+			if (action.equals(Constant.ACTION_SEL)){
+				if (getRedisClient().bget("userrole") != null){
+					result = (DataResult)getRedisClient().bget("userrole");					
+				}else{
+					List lst = dao.getSqlSession().selectList("ptUserRole.select",param);
+					result.setData(lst);
+					result.setStatusCode(StatusCode.Success);				
+					/*getRedisClient().bset("userrole", result);
+					getRedisClient().expire("userrole", 10);*/
+					
+					orderRedisService.SaveResult("userrole", result);
+				}
+		
+			}else if (action.equals(Constant.ACTION_DEL)){
+			}else{
+				result.setStatusCode(StatusCode.UndefinedAction);
+			}
+			
+			//将结果通过param返回
+			param.setResult(result);
+		}catch (Exception e){
+			result.setStatusCode(StatusCode.SysException);
+			param.setResult(result);
+			
+			getLogger().error("OrderService " + e.getMessage());
+			
+			//系统异常
+			throw new UDException(StatusCode.SysException,e);
+		}
+	}
+}

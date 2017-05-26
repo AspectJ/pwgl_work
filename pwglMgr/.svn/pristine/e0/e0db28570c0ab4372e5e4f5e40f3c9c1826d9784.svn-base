@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="reserve">
+
+	<!-- 条件查询预留票种 -->
+	<select id="selReserveByCriteria" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+		SELECT reserveid, reservename, isreserve, issale, iscancel, `status`, delstatus, cid, ctime, `mid`, mtime
+		FROM pt_reserve
+		<where>
+			<if test='status != null and status != ""'>
+				AND `status` = #{status}
+			</if>
+			<if test='reservename != null and reservename != ""'>
+				AND reservename LIKE '%${reservename}%'
+			</if>
+		</where>
+		ORDER BY ctime desc
+		<if test="offsetNum != null and limitSize != null">
+			LIMIT #{offsetNum}, #{limitSize}
+		</if>
+	</select>
+
+	<!-- 查询COUNT -->
+	<select id="selReserveByCriteriaCount" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*)
+		FROM pt_reserve
+		<where>
+			<if test='status != null and status != ""'>
+				AND `status` = #{status}
+			</if>
+			<if test='reservename != null and reservename != ""'>
+				AND reservename LIKE '%${reservename}%'
+			</if>
+		</where>
+	</select>
+
+
+	<!-- 新增预留票种 -->
+	<insert id="addReserve" parameterType="com.ydp.typedef.Param">
+		<selectKey keyProperty="reserveid" order="AFTER" resultType="java.lang.Integer">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+		INSERT INTO pt_reserve(reservename, isreserve, issale, iscancel, `status`, delstatus, cid, ctime)
+		VALUES(#{reservename}, #{isreserve}, #{issale}, #{iscancel}, #{status}, 0, #{userid}, NOW())
+	</insert>
+
+	<!-- 修改预留票种 -->
+	<update id="updateReserve" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_reserve
+				SET reservename = #{reservename}, isreserve = #{isreserve},
+					issale = #{issale}, iscancel = #{iscancel},
+					`status` = #{status}, `mid` = #{userid},
+					mtime = NOW()
+		WHERE reserveid = #{reserveid}
+	</update>
+
+
+
+
+
+</mapper>

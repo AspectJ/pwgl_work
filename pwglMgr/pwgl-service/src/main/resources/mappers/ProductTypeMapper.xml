@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ptProductType">
+
+	<!-- 查询项目类型信息 -->
+	<select id="findProductType" resultType="com.ydp.pwgl.entity.ProductType">
+		SELECT * FROM pt_producttype
+	</select>
+</mapper>

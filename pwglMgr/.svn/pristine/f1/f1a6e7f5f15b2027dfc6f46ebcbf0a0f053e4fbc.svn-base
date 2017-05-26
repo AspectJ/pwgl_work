@@ -1,0 +1,63 @@
+package com.ydp.pwgl.service.venue;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.pwgl.entity.Venue;
+import com.ydp.typedef.*;
+import com.ydp.util.Dao;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.List;
+
+/**
+ * Created by john on 2017/4/26.
+ */
+@Service("venueService")
+public class VenueService extends BaseService implements IService {
+
+    public VenueService() {
+        super(VenueService.class);
+    }
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void service(Param param) throws Exception {
+        Dao dao = getDao();
+        DataResult result = new DataResult();
+
+        try {
+            //从请求参数获取操作类型
+            String action = param.get("action").toString();
+
+            //写日志
+            getLogger().debug(action);
+
+            //根据操作类型路由
+            if (action.equals(Constant.ACTION_SEL)) {
+
+                List<Venue> resultList = this.findAllVenue(dao);
+
+                result.setData(resultList);
+                result.setStatusCode(StatusCode.Success);
+                param.setResult(result);
+
+
+            } else if (action.equals(Constant.ACTION_DEL)) {
+
+            } else {
+                result.setStatusCode(StatusCode.UndefinedAction);
+            }
+        } catch (Exception e) {
+            result.setStatusCode(StatusCode.SysException);
+            //系统异常
+            throw new UDException(StatusCode.SysException, e);
+        }
+    }
+
+
+    public List<Venue> findAllVenue(Dao dao) {
+        List<Venue> resultList = dao.getSqlSession().selectList("ptVenue.findAllVenue");
+        return resultList;
+    }
+}

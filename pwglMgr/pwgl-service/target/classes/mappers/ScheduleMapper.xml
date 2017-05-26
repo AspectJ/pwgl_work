@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+        "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="schedule">
+    <select id="getPlans" parameterType="com.ydp.typedef.Param" resultType="com.ydp.pwgl.entity.Schedle">
+        SELECT  s.sessionsid,v.venuename,v.venueid,v.address,MIN(d.price) AS price,MAX(playtime) AS overtime,MIN(playtime) AS begintime,i.* FROM  pt_sessions  s
+        JOIN  pt_item i ON s.itemid=i.itemid
+        JOIN  pt_venue v ON   i.venueid=v.venueid
+        JOIN(
+        SELECT a.sessionsid,min(a.price) AS price FROM pt_sessnpew a GROUP BY a.sessionsid
+        ) AS d ON d.sessionsid=s.sessionsid
+        <where>
+        <if test="venueid != null and venueid != ''">
+                AND v.venueid = #{venueid}
+            </if>
+        </where>
+        GROUP BY itemid
+        ORDER BY begintime  DESC
+            <if test="offsetNum != null and limitSize != null">
+                LIMIT #{offsetNum}, #{limitSize}
+            </if>
+    </select>
+</mapper>

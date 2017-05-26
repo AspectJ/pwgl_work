@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="channel">
+
+	<!-- 查询渠道 -->
+	<select id="findChannel" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+		SELECT * FROM pt_channel
+		ORDER BY ctime DESC
+		<if test="offsetNum != null and limitSize != null">
+			LIMIT #{offsetNum}, #{limitSize}
+		</if>
+	</select>
+
+
+	<!-- 查询COUNT -->
+	<select id="findChannelCount" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_channel
+	</select>
+
+
+	<!-- 新增渠道商 -->
+	<insert id="addChannel" parameterType="com.ydp.typedef.Param">
+		<selectKey keyProperty="channelid" order="AFTER" resultType="java.lang.Integer">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+		INSERT INTO pt_channel(channelname, ctime, cid)
+			VALUES(#{channelname}, NOW(), #{userid})
+	</insert>
+
+	<!-- 更新渠道商 -->
+	<update id="updateChannel" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_channel SET channelname = #{channelname},
+								mtime = NOW(),
+								`mid` = #{userid}
+		WHERE channelid = #{channelid}
+	</update>
+
+	<!-- 幂等性查重 -->
+	<select id="checkRepeat" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_channel WHERE channelname = #{channelname}
+		<if test='channelid != null and channelid != ""'>
+			AND channelid != #{channelid}
+		</if>
+	</select>
+
+
+	<!-- 删除渠道商 -->
+	<delete id="deleteChannel" parameterType="com.ydp.typedef.Param">
+		DELETE FROM pt_channel
+		WHERE channelid = #{channelid}
+	</delete>
+
+
+
+</mapper>

@@ -1,0 +1,81 @@
+package com.ydp.pwgl.controller.order;
+
+import java.io.IOException;
+
+import javax.servlet.ServletException;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
+import javax.ws.rs.GET;
+import javax.ws.rs.POST;
+import javax.ws.rs.Path;
+import javax.ws.rs.Produces;
+import javax.ws.rs.core.Context;
+
+import net.sf.json.JSONObject;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+import com.ydp.face.BaseController;
+import com.ydp.pwgl.service.order.OrderService;
+import com.ydp.typedef.DataResult;
+import com.ydp.typedef.Param;
+import com.ydp.typedef.UDException;
+
+@Service
+@Path("/rest/order")
+public class OrderController extends BaseController{
+	
+	@Autowired
+	private OrderService orderService;
+	
+	public OrderController(){
+		super(OrderController.class);
+	}
+
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/index")
+	@Produces("application/json;charset=UTF-8")
+	public DataResult OrderList(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		Param param = new Param(request);	
+		
+		getLogger().debug("uid:{}",param.get("uid"));
+		
+		try {
+			orderService.service(param);
+		}catch (Exception e){
+			getLogger().error(e.getMessage());
+			return null;
+		}
+		
+		return param.getResult();
+	}
+	
+	@SuppressWarnings("unchecked")
+	@GET
+	@POST
+	@Path("/index2")
+	@Produces("application/json;charset=UTF-8")
+	public String OrderListString(@Context HttpServletRequest request,
+			@Context HttpServletResponse response) throws ServletException,
+			IOException {
+
+		Param param = new Param(request);		
+		try {
+			orderService.service(param);
+		}catch (Exception e){
+			getLogger().error(e.getMessage());
+			return null;
+		}
+		
+		JSONObject jsonObj = new JSONObject();
+		jsonObj.put("test", "ok");
+		jsonObj.put("result", param.getResult());
+		return Response(jsonObj,request);
+	}
+
+}

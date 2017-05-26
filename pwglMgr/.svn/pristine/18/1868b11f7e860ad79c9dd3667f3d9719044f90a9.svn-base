@@ -1,0 +1,23 @@
+package com.ydp.pwgl.service.order;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
+
+import com.ydp.face.IRedisClient;
+
+
+//这里写些比较复杂点逻辑缓存代码 
+//简单的逻辑也要吧直接在DAO service 中写
+@Service
+public class OrderRedisService {
+	@Autowired
+	private  IRedisClient redisClient;
+	
+	
+	public void SaveResult(String key,Object value){
+		redisClient.open(0); 
+		redisClient.bset(key, value);
+		redisClient.expire(key,60);
+	}
+	
+}

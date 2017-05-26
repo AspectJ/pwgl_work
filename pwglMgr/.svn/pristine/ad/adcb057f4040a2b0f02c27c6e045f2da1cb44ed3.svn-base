@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="item">
+
+	<!-- 插入项目信息 -->
+	<insert id="insertItem" parameterType="com.ydp.typedef.Param">
+		<selectKey keyProperty="itemid" resultType="java.lang.Integer" order="AFTER">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+		INSERT INTO pt_item(itemname, producttypeid, introduction, venueid, sel_status, starttime, endtime,
+			image_path_arr, vedio_path_arr, cid, ctime)
+		VALUES(#{itemname}, #{producttypeid}, #{introduction}, #{venueid}, #{sel_status}, #{starttime}, #{endtime},
+			#{image_path_arr}, #{vedio_path_arr}, #{cid}, #{ctime})
+	</insert>
+
+	<!-- 条件查询项目信息 -->
+	<select id="findItemByCriteria" parameterType="com.ydp.typedef.Param" resultType="com.ydp.pwgl.expandbean.ItemExpand">
+		SELECT pti.*, ptp.typename, ptv.venuename FROM pt_item pti
+		LEFT OUTER JOIN pt_producttype ptp ON  pti.producttypeid = ptp.producttypeid
+		LEFT OUTER JOIN pt_venue ptv ON pti.venueid = ptv.venueid
+		WHERE pti.delstatus = 0
+		<if test="starttime != null and endtime != null and starttime!= '' and endtime != ''">
+			AND pti.starttime >= #{starttime}
+			AND pti.endtime <![CDATA[ <= ]]> #{endtime}
+		</if>
+		<if test="itemname != null and itemname != ''">
+			AND pti.itemname LIKE '%${itemname}%'
+		</if>
+		<if test="producttypeid != null and producttypeid != ''">
+			AND pti.producttypeid = #{producttypeid}
+		</if>
+		<if test="venueid != null and venueid != ''">
+			AND pti.venueid = #{venueid}
+		</if>
+		ORDER BY pti.ctime DESC
+		<if test="offsetNum != null and limitSize != null">
+			LIMIT #{offsetNum}, #{limitSize}
+		</if>
+	</select>
+
+	<!-- 条件查询项目信息总数 -->
+	<select id="findItemByCriteriaCount" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_item pti
+		WHERE pti.delstatus = 0
+		<if test="starttime != null and endtime != null and starttime!= '' and endtime != ''">
+			AND pti.starttime >= #{starttime}
+			AND pti.endtime <![CDATA[ <= ]]> #{endtime}
+		</if>
+		<if test="itemname != null and itemname != ''">
+			AND pti.itemname LIKE '%${itemname}%'
+		</if>
+		<if test="producttypeid != null and producttypeid != ''">
+			AND pti.producttypeid = #{producttypeid}
+		</if>
+		<if test="venueid != null and venueid != ''">
+			AND pti.venueid = #{venueid}
+		</if>
+	</select>
+
+	<!-- 更新项目信息 -->
+<!--	<update id="updateItem" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_item SET itemname = '1'
+		WHERE itemid = 	11
+	</update>-->
+</mapper>

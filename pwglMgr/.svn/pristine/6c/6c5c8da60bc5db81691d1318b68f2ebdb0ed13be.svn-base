@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="sessions">
+
+	<!-- 条件查询场次信息 -->
+	<select id="findSessionsByCriteria" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+		SELECT pts.*, pti.itemname
+		FROM pt_sessions pts
+		LEFT OUTER JOIN pt_item pti ON pts.itemid = pti.itemid
+		<where>
+			<if test='starttime != null and starttime != "" and endtime != null and endtime != ""'>
+				AND pts.begintime > #{starttime} AND pts.endtime <![CDATA[ < ]]> #{endtime}
+			</if>
+			<if test='sessionsname != null and sessionsname != ""'>
+				AND pts.sessionsname LIKE '%${sessionsname}%'
+			</if>
+			<if test='producttypeid != null and producttypeid != ""'>
+				AND pts.producttypeid = #{producttypeid}
+			</if>
+			<if test='itemid != null and itemid != ""'>
+				AND pts.itemid = #{itemid}
+			</if>
+			<if test='venueid != null and venueid != ""'>
+				AND pts.venueid = #{itemid}
+			</if>
+			<!-- 根据禁启状态查询 -->
+			<if test='status != null and status != ""'>
+				AND pts.status = #{status}
+			</if>
+		</where>
+		ORDER BY pts.ctime DESC
+		<if test="offsetNum != null and limitSize != null">
+			LIMIT #{offsetNum}, #{limitSize}
+		</if>
+	</select>
+
+	<!-- 查询count -->
+	<select id="findSessionsByCriteriaCount" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_sessions
+		<where>
+			<if test='starttime != null and starttime != "" and endtime != null and endtime != ""'>
+				AND begintime > #{starttime} AND endtime <![CDATA[ < ]]> #{endtime}
+			</if>
+			<if test='sessionsname != null and sessionsname != ""'>
+				AND sessionsname LIKE '%${sessionsname}%'
+			</if>
+			<if test='producttypeid != null and producttypeid != ""'>
+				AND producttypeid = #{producttypeid}
+			</if>
+			<if test='itemid != null and itemid != ""'>
+				AND itemid = #{itemid}
+			</if>
+			<if test='venueid != null and venueid != ""'>
+				AND VENUEID = #{itemid}
+			</if>
+			<!-- 根据禁启状态查询 -->
+			<if test='status != null and status != ""'>
+				AND 'status' = #{status}
+			</if>
+		</where>
+	</select>
+
+	<!-- 新增场次信息 -->
+	<insert id="addSessions" parameterType="com.ydp.typedef.Param">
+		INSERT INTO pt_sessions(sessionsid, sessionsname, sessionscode, ticketfaceid, `status`, itemid, begintime, endtime, playtime, hallid, `length`, cid, ctime)
+		VALUES(#{sessionsid}, #{sessionsname}, #{sessionscode}, #{ticketfaceid}, #{status}, #{itemid}, #{starttime}, #{endtime}, #{playtime}, #{hallid}, #{length}, #{userid}, NOW())
+	</insert>
+
+	<!-- 修改场次信息 -->
+	<update id="updateSessions" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_sessions SET
+								sessionsname = #{sessionsname},
+								`status` = #{status},
+								itemid = #{itemid},
+								ticketfaceid = #{ticketfaceid}
+								begintime = #{starttime},
+								endtime = #{endtime},
+								playtime = #{playtime},
+								hallid = #{hallid},
+								`length` = #{length},
+								`mid` = #{userid},
+								mtime = NOW()
+		WHERE sessionsid = #{sessionsid}
+	</update>
+
+
+	<!-- 审核场次 -->
+	<update id="auditSessions" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_sessions SET `status` = #{status}
+		WHERE sessionsid = #{sessionsid}
+	</update>
+
+
+
+</mapper>

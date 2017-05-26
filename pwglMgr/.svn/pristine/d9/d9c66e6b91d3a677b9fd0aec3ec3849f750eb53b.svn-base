@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ticketface">
+
+
+	<!-- 条件查询票样信息 -->
+	<select id="selTicketFaceByCriteria" parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+		SELECT ptt.ticketfaceid, ptt.venueid, ptt.sessionsid, ptt.ticketcode, ptt.ticketname, ptt.bgurl, ptt.height,
+				ptt.width, ptt.content, ptt.cid, ptt.ctime, ptt.mid, ptt.mtime, ptv.venuename
+		FROM pt_ticketface ptt
+		LEFT OUTER JOIN pt_venue ptv ON ptt.venueid = ptv.venueid
+		<where>
+			<if test='ticketname != null and ticketname != ""'>
+				AND ticketname LIKE '%${ticketname}%'
+			</if>
+			<if test='venueid != null and venueid != ""'>
+				AND venueid = #{venueid}
+			</if>
+		</where>
+		ORDER BY ctime DESC
+		<if test="offsetNum != null and limitSize != null">
+			LIMIT #{offsetNum}, #{limitSize}
+		</if>
+	</select>
+
+	<!-- 查询count -->
+	<select id="selTicketFaceByCriteriaCount" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_ticketface
+		<where>
+			<if test='ticketname != null and ticketname != ""'>
+				AND ticketname LIKE '${ticketname}'
+			</if>
+			<if test='venueid != null and venueid != ""'>
+				AND venueid = #{venueid}
+			</if>
+		</where>
+	</select>
+	
+	<!--************* 新增票面 *************-->
+	<insert id="addTicketFace" parameterType="com.ydp.typedef.Param">
+		INSERT INTO pt_ticketface(ticketfaceid, ticketname, venueid, height, width, content, bgurl, cid, ctime)
+		VALUES(#{ticketfaceid}, #{ticketname}, #{venueid}, #{height}, #{width}, #{content}, #{bgurl}, #{userid}, NOW())
+	</insert>
+
+
+	<!-- 更改票样 -->
+	<update id="updateTicketFace" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_ticketface
+				SET
+					ticketname = #{ticketname},
+					height = #{height},
+					width = #{width},
+					venueid = #{venueid},
+					bgurl = #{bgurl},
+					content = #{content},
+					`mid` = #{userid},
+					mtime = #{mtime},
+		WHERE ticketfaceid = #{ticketfaceid}
+	</update>
+
+</mapper>

@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="priceLevel">
+
+	<!-- 新增票价等级 -->
+	<insert id="addPriceLevel" parameterType="com.ydp.typedef.Param">
+		<selectKey keyProperty="priceLevelID" order="AFTER" resultType="java.lang.Integer">
+			SELECT LAST_INSERT_ID()
+		</selectKey>
+		INSERT INTO pt_pricelevel(pricelevelname, color)
+		VALUES(#{pricelevelname}, #{color})
+	</insert>
+
+	<!-- 查询全部票价等级 -->
+	<select id="findAllPriceLevel" resultType="com.ydp.pwgl.entity.PriceLevel">
+		SELECT * FROM pt_pricelevel
+		WHERE delstatus = 0
+	</select>
+
+	<!-- 更新票价等级 -->
+	<update id="updatePriceLevelById" parameterType="com.ydp.typedef.Param">
+		UPDATE pt_pricelevel SET pricelevelname = #{pricelevelname}, color = #{color}
+		WHERE pricelevelid = #{pricelevelid}
+	</update>
+
+	<!-- 幂等性操作__去重 -->
+	<select id="checkRepeat" parameterType="com.ydp.typedef.Param" resultType="java.lang.Integer">
+		SELECT COUNT(*) FROM pt_pricelevel
+		WHERE pricelevelid != #{pricelevelid} AND (pricelevelname = #{pricelevelname} OR color = #{color})
+	</select>
+
+	<!-- 根据id删除票价等级__物理删除 -->
+	<delete id="deletePriceLevelById" parameterType="com.ydp.typedef.Param">
+		DELETE FROM pt_pricelevel
+		WHERE pricelevelid = #{pricelevelid}
+	</delete>
+</mapper>

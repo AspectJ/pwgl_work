@@ -1,0 +1,195 @@
+package com.ydp.pwgl.service.sessions;
+
+import com.ydp.face.BaseService;
+import com.ydp.face.IService;
+import com.ydp.typedef.*;
+import com.ydp.util.CodeUtil;
+import com.ydp.util.Dao;
+import com.ydp.util.IdUtil;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
+
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+/**
+ * Created by john on 2017/5/9.
+ */
+@Service
+public class SessionsService extends BaseService implements IService {
+
+    public SessionsService() {
+        super(SessionsService.class);
+    }
+
+    private Dao dao;
+    DataResult result;
+
+    @Override
+    @Transactional(rollbackFor = Exception.class)
+    public void service(Param param) throws Exception {
+
+        this.dao = getDao();
+        result = new DataResult();
+
+        try {
+            //从请求参数获取操作类型
+            String action = param.get("action").toString();
+
+            //写日志
+            getLogger().debug(action);
+
+            //根据操作类型路由
+            if (action.equals(Constant.ACTION_SEL)) {
+                /** 条件查询场次信息 */
+                List<Map<String, Object>> resultList = this.findSessionsByCriteria(param);
+                Integer resultCount = this.findSessionsByCriteriaCount(param);
+                result.setStatusCode(StatusCode.Success);
+                result.setData(resultList);
+                result.setTotal(resultCount);
+                param.setResult(result);
+
+            } else if (action.equals(Constant.ACTION_DEL)) {
+
+            } else if(action.equals(Constant.ACTION_INS)) {
+                /** 去重 */
+                Integer repeatCount = this.checkRepeat(param);
+                if (repeatCount != null && repeatCount > 0) {
+                    result.setStatusCode(StatusCode.Sessions_IS_Exsits);
+                    param.setResult(result);
+                    return;
+                }
+                /** 新增场次 */
+                //插入数据的主键
+                String sessionsid = this.addSessions(param);
+                result.setStatusCode(StatusCode.Success);
+                result.setData(new HashMap().put("sessionsid", sessionsid));
+                param.setResult(result);
+
+            } else if(action.equals(Constant.ACTION_UPD)) {
+                /** 修改场次 */
+                this.updateSessions(param);
+                result.setStatusCode(StatusCode.Success);
+                param.setResult(result);
+
+            } else if(action.equals(Constant.Action_CHSTATUS)) {
+                /** 审核场次 */
+                this.auditSessions(param);
+                result.setStatusCode(StatusCode.Success);
+                param.setResult(result);
+            }
+            else {
+                result.setStatusCode(StatusCode.UndefinedAction);
+            }
+        } catch (Exception e) {
+            result.setStatusCode(StatusCode.SysException);
+            //系统异常
+            throw new UDException(StatusCode.SysException, e);
+        }
+    }
+
+    /**
+     * 条件查询场次
+     * @param param
+     * @return
+     */
+    public List<Map<String, Object>> findSessionsByCriteria(Param param) {
+        String page = (String) param.get("page");
+        String pagesize  = (String) param.get("pagesize");
+        if(!CodeUtil.checkParam(page, pagesize)) {
+            param.put("offsetNum", (Integer.parseInt(page) - 1) * Integer.parseInt(pagesize));		//从第多少条开始查询
+            param.put("limitSize", Integer.parseInt(pagesize));	//每页查询数据条数：例如10条
+        }
+        List<Map<String, Object>> resultList = dao.getSqlSession().selectList("sessions.findSessionsByCriteria", param);
+        return resultList;
+    }
+
+    /**
+     * 查询count
+     * @return
+     */
+    public Integer findSessionsByCriteriaCount(Param param) {
+        Integer resultCount = dao.getSqlSession().selectOne("sessions.findSessionsByCriteriaCount", param);
+        return resultCount;
+    }
+
+    /**
+     * 新增场次
+     * @param param
+     */
+    public String addSessions(Param param) {
+        /** 缺少参数 */
+        if(!param.containsKey("userid") || !param.containsKey("sessionsname") || !param.containsKey("status") || !param.containsKey("itemid")
+                || !param.containsKey("ticketfaceid") || !param.containsKey("starttime") || !param.containsKey("endtime") || !param.containsKey("playtime")
+                || !param.containsKey("hallid") || !param.containsKey("length")) {
+            result.setStatusCode(StatusCode.MissingParams);
+            param.setResult(result);
+            return null;
+        }
+        /** 生成主键id */
+        String sessionsid = IdUtil.createId();
+        /** 生成场次编号*/
+        String sessionscode = IdUtil.createThirteenId();
+        param.put("sessionsid", sessionsid);
+        param.put("sessionscode", sessionscode);
+        dao.getSqlSession().insert("session.addSessions", param);
+        return sessionsid;
+    }
+
+
+    /**
+     * 幂等性去重
+     * @param param
+     */
+    public Integer checkRepeat(Param param) {
+        /** 校验参数 */
+        if(!param.containsKey("sessionsname")) {
+            result.setStatusCode(StatusCode.MissingParams);
+            param.setResult(result);
+            return null;
+        }
+        Integer repeatCount = dao.getSqlSession().selectOne("sessions.checkRepeat", param);
+        return repeatCount;
+    }
+
+
+    /**
+     * 修改场次
+     * @param param
+     * @return
+     */
+    public void updateSessions(Param param) {
+        /** 缺少参数 */
+        if(!param.containsKey("userid") || !param.containsKey("sessionsname") || !param.containsKey("status") || !param.containsKey("itemid")
+                || !param.containsKey("starttime") || !param.containsKey("endtime") || !param.containsKey("playtime") || !param.containsKey("sessionsid")
+                || !param.containsKey("hallid") || !param.containsKey("length") || !param.containsKey("ticketfaceid")) {
+            result.setStatusCode(StatusCode.MissingParams);
+            param.setResult(result);
+            return;
+        }
+
+        dao.getSqlSession().update("session.updateSessions", param);
+    }
+
+
+    /**
+     * 审核场次
+     * @param param
+     */
+    public void auditSessions(Param param) {
+        //缺少参数
+        if(!param.containsKey("sessionsid") || !param.containsKey("status")) {
+            result.setStatusCode(StatusCode.MissingParams);
+            param.setResult(result);
+            return;
+        }
+
+        dao.getSqlSession().update("sessions.auditSessions", param);
+    }
+
+
+
+
+
+}

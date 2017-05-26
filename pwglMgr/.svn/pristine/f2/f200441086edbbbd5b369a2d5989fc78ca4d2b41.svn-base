@@ -1,0 +1,5 @@
+package com.ydp.pwgl.service.user;
+
+public class UserService {
+
+}

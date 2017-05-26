@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+"http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="ptUserRole">
+
+	<!-- 修改影院信息 -->
+	<select id="select"  parameterType="com.ydp.typedef.Param" resultType="java.util.Map">
+	select * from pt_user_role where mtime>#{mtime}
+	</select>
+</mapper>
