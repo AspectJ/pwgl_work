@@ -1,0 +1,50 @@
+package com.ydp.pwgl.task.job;
+
+import java.io.File;
+import java.util.Date;
+
+import org.apache.log4j.PropertyConfigurator;
+import org.quartz.Job;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.context.ApplicationContext;
+import org.springframework.context.support.ClassPathXmlApplicationContext;
+
+import com.ydp.pwgl.dubbo.faces.ILockSeatApiService;
+import com.ydp.typedef.DataResult;
+import com.ydp.util.DateForamtUtil;
+
+/**
+ * 15分钟定时取消未支付的订单座位
+ * 
+ * @author Administrator
+ * 
+ */
+public class UnLockUnPaySeatJob implements Job {
+	private static Logger logger = LoggerFactory.getLogger(UnLockUnPaySeatJob.class);
+	private static ApplicationContext ac;
+	
+	static{
+		ac = new  ClassPathXmlApplicationContext("classpath:conf/spring-dubbo.xml");
+	}
+
+	@Override
+	public void execute(JobExecutionContext arg0) throws JobExecutionException {
+		// TODO Auto-generated method stub
+		
+		try{
+			ILockSeatApiService lockSeatApiService = (ILockSeatApiService) ac.getBean("lockSeatApiService");
+
+			lockSeatApiService.UnLockUnPaySeatQueue(900);
+			
+			logger.info(DateForamtUtil.to_yyyy_MM_dd_HH_mm_ss_str(new Date()) + "called!");
+			
+		}catch(Exception e){
+			logger.error(e.getMessage());
+		}		
+	}
+
+
+}
